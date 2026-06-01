@@ -1,6 +1,6 @@
-# Antant Boutique Manager - Frontend Client
+# POTU: Product & Order Tracking Unit - Frontend Client
 
-This repository contains the static, responsive frontend client for the **Antant Boutique Manager** web application. It is designed to be hosted 100% free on **GitHub Pages** without any credit cards or operational overhead.
+This repository contains the static, responsive frontend client for **POTU: Product & Order Tracking Unit** (Antant Boutique Manager). It is designed to be hosted 100% free on **GitHub Pages** without any credit cards or operational overhead.
 
 ---
 
@@ -35,7 +35,7 @@ This repository contains the static, responsive frontend client for the **Antant
    *   **Branch**: Select **`main`** (or `master`) and keep the folder as **`/ (root)`**.
    *   Click **Save**.
 
-Your frontend is now live! GitHub will generate a secure URL for you (e.g. `https://username.github.io/repository/`).
+Your POTU frontend is now live! GitHub will generate a secure URL for you (e.g. `https://username.github.io/repository/`).
 
 ---
 
