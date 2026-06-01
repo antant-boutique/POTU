@@ -1027,8 +1027,7 @@ async function loadOrders() {
                 const div = document.createElement('div');
                 div.className = 'order-tracker-card';
                 
-                const apiBase = RENDER_BACKEND_URL || 'http://localhost:5000';
-                const customerLink = `${apiBase}/orderstatus/${card.id}`;
+                const customerLink = `https://antant-boutique.github.io/orderstate/index.html?ID=${card.id}`;
                 
                 let productListHtml = '';
                 card.products.forEach((prod, index) => {
