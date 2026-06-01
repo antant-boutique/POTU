@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antant Boutique Manager</title>
+    <!-- Outfit & Inter Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Cloud-Native Fetch Hijacker (Allows static GitHub Pages to talk to stateless Render backend) -->
+    <script>
+        const RENDER_BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? ''
+            : 'https://aantaat-webapp.onrender.com'; // <-- REPLACE THIS WITH YOUR ACTUAL LIVE RENDER SERVICE URL
+        
+        const originalFetch = window.fetch;
+        window.fetch = function (input, init) {
+            if (typeof input === 'string' && input.startsWith('/api/')) {
+                input = RENDER_BACKEND_URL + input;
+            }
+            return originalFetch(input, init);
+        };
+    </script>
+
+    <!-- Custom CSS Stylesheet -->
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <img src="static/images/ICON.png" alt="Antant Logo" onerror="this.src='https://antant-boutique.github.io/Accountant/ICON.png'">
+                <div class="brand-text">
+                    <h1>Antant</h1>
+                    <span>fits you inside</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" onclick="switchTab(event, 'dashboard')">
+                    <i class="fa-solid fa-chart-line"></i><span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'materials')">
+                    <i class="fa-solid fa-scroll"></i><span>Material Entry</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'design')">
+                    <i class="fa-solid fa-compass-drafting"></i><span>Textile Design</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'billing')">
+                    <i class="fa-solid fa-receipt"></i><span>Billing & POS</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'orders')">
+                    <i class="fa-solid fa-truck-ramp-box"></i><span>Custom Orders</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'catalog')">
+                    <i class="fa-solid fa-shirt"></i><span>Product Catalog</span>
+                </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'search')">
+                    <i class="fa-solid fa-magnifying-glass"></i><span>Info Lookup</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <p>Local Management System</p>
+                <span>v3.0 Standalone</span>
+            </div>
+        </aside>
+
+        <!-- Main Body Panel -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="content-header">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="globalSearchInput" placeholder="Quick search material or product..." oninput="handleGlobalSearch(this.value)">
+                </div>
+                <div class="profile-area">
+                    <div class="wallet-quick-badge">
+                        <span class="dot"></span>
+                        <span id="quickTotalWallet">Rs. --</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- TABS AREA -->
+            <div class="tab-scroll-container">
+                <!-- 1. DASHBOARD TAB -->
+                <div id="tab-dashboard" class="tab-panel active">
+                    <div class="overview-grid">
+                        <div class="metric-card balance-card cash">
+                            <div class="card-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                            <div class="card-info">
+                                <h3>Cash Balance</h3>
+                                <h2 id="metricCashBalance">Rs. 0.00</h2>
+                                <span id="metricCashDate">Last transaction: --</span>
+                            </div>
+                        </div>
+                        <div class="metric-card balance-card card">
+                            <div class="card-icon"><i class="fa-solid fa-credit-card"></i></div>
+                            <div class="card-info">
+                                <h3>Bank Card Balance</h3>
+                                <h2 id="metricCardBalance">Rs. 0.00</h2>
+                                <span id="metricCardDate">Last transaction: --</span>
+                            </div>
+                        </div>
+                        <div class="metric-card balance-card total">
+                            <div class="card-icon"><i class="fa-solid fa-wallet"></i></div>
+                            <div class="card-info">
+                                <h3>Total Asset Pool</h3>
+                                <h2 id="metricTotalBalance">Rs. 0.00</h2>
+                                <span>Card + Cash Combined</span>
+                            </div>
+                        </div>
+                        <div class="metric-card tally-card">
+                            <div class="card-icon"><i class="fa-solid fa-box-archive"></i></div>
+                            <div class="card-info">
+                                <h3>Stock Metrics</h3>
+                                <div class="mini-metrics">
+                                    <div><strong id="metricMaterials">--</strong> Fabrics</div>
+                                    <div><strong id="metricDesigns">--</strong> Designed</div>
+                                    <div><strong id="metricProducts">--</strong> Products</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-sections">
+                        <!-- Left Pane: Transaction statements -->
+                        <div class="dashboard-card section-transactions">
+                            <div class="card-header">
+                                <h2>Recent Double-Entry Statements</h2>
+                                <button class="btn btn-secondary" onclick="loadDashboard()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                            </div>
+                            <div class="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Remarks</th>
+                                            <th>Card Trx</th>
+                                            <th>Cash Trx</th>
+                                            <th>Card Bal</th>
+                                            <th>Cash Bal</th>
+                                            <th>Total Bal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transactionLogBody">
+                                        <!-- Dynamic statements injection -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. MATERIALS ENTRY TAB -->
+                <div id="tab-materials" class="tab-panel">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h2>Upload Bulk Materials</h2>
+                            <p>Generate codes and register incoming raw fabrics seamlessly.</p>
+                        </div>
+                        <form id="materialsForm" onsubmit="submitMaterials(event)">
+                            <div class="table-container">
+                                <table id="materialsEntryTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Source Store</th>
+                                            <th>Fabric Description</th>
+                                            <th>Color/Print Details</th>
+                                            <th>Length (meters)</th>
+                                            <th>Total Price (INR)</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><input type="text" name="source" placeholder="e.g. Bhagaban-Fulia" required></td>
+                                            <td><input type="text" name="material" placeholder="e.g. Comfortable-cotton" required></td>
+                                            <td><input type="text" name="color" placeholder="e.g. Bottle-green" required></td>
+                                            <td><input type="number" step="0.01" name="quantity" placeholder="e.g. 5.5" required></td>
+                                            <td><input type="number" step="0.01" name="price" placeholder="e.g. 360" required></td>
+                                            <td><button type="button" class="btn btn-icon btn-danger" onclick="removeRow(this)"><i class="fa-solid fa-trash"></i></button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-secondary" onclick="addMaterialRow()"><i class="fa-solid fa-plus"></i> Add Row</button>
+                                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Materials</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 3. TEXTILE DESIGN TAB -->
+                <div id="tab-design" class="tab-panel">
+                    <div class="design-split-grid">
+                        <div class="dashboard-card form-section">
+                            <div class="card-header">
+                                <h2>Material Design Form</h2>
+                                <p>Register hand Block, hand Paint, stitching charges, and card/cash debit accounts.</p>
+                            </div>
+                            <form id="designForm" onsubmit="submitDesign(event)">
+                                <!-- Fabric Select Table -->
+                                <h3>1. Target Materials</h3>
+                                <div class="table-container">
+                                    <table id="designMaterialsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Material Code</th>
+                                                <th>Length to Design (m)</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td class="autocomplete-td">
+                                                    <input type="text" name="materials[]" placeholder="Type to search fabric..." onfocus="showMaterialSuggestions(this)" oninput="filterMaterialSuggestions(this)" required>
+                                                    <div class="autocomplete-suggestions"></div>
+                                                </td>
+                                                <td><input type="number" step="0.01" name="measures[]" placeholder="e.g. 5.5" required></td>
+                                                <td><button type="button" class="btn btn-icon btn-danger" onclick="removeRow(this)"><i class="fa-solid fa-trash"></i></button></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="addDesignMaterialRow()"><i class="fa-solid fa-plus"></i> Add Material</button>
+                                
+                                <div class="checkbox-group merge-group">
+                                    <label class="custom-checkbox">
+                                        <input type="checkbox" name="mergeMaterials" value="on">
+                                        <span class="checkmark"></span>
+                                        Merge designed fabrics into one Master Material
+                                    </label>
+                                </div>
+
+                                <!-- Operations Cost breakdown -->
+                                <h3>2. Operations Cost (Debit Accounts)</h3>
+                                <div class="operations-grid">
+                                    <div class="op-row">
+                                        <label>Hand Block Print (INR)</label>
+                                        <input type="number" name="handBlockCost" placeholder="0" oninput="recalcDesignTotal()">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="cashHB" value="on">
+                                            <span class="slider"></span> Cash Account
+                                        </label>
+                                    </div>
+                                    <div class="op-row">
+                                        <label>Hand Paint (INR)</label>
+                                        <input type="number" name="handPaintCost" placeholder="0" oninput="recalcDesignTotal()">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="cashHP" value="on">
+                                            <span class="slider"></span> Cash Account
+                                        </label>
+                                    </div>
+                                    <div class="op-row">
+                                        <label>Hand Embroidery (INR)</label>
+                                        <input type="number" name="handEmbroideryCost" placeholder="0" oninput="recalcDesignTotal()">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="cashHE" value="on">
+                                            <span class="slider"></span> Cash Account
+                                        </label>
+                                    </div>
+                                    <div class="op-row">
+                                        <label>Hand Applique (INR)</label>
+                                        <input type="number" name="handAppliqueCost" placeholder="0" oninput="recalcDesignTotal()">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="cashHA" value="on">
+                                            <span class="slider"></span> Cash Account
+                                        </label>
+                                    </div>
+                                    <div class="op-row">
+                                        <label>Tailoring / Stitch (INR)</label>
+                                        <input type="number" name="tailoringCost" placeholder="0" oninput="recalcDesignTotal()">
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" name="cashTL" value="on">
+                                            <span class="slider"></span> Cash Account
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Design Stage Image upload -->
+                                <h3 style="margin-top: 20px;">3. Design Stage Image (Optional)</h3>
+                                <div class="form-group" style="margin-bottom: 20px; background-color: rgba(255, 255, 255, 0.01); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px;">
+                                    <label>Upload Stage Photo</label>
+                                    <input type="file" id="designImageInput" accept="image/*" style="width: 100%; color: var(--text-sub); font-size: 0.85rem; margin-top: 4px;">
+                                </div>
+
+                                <!-- Finished Product Finishing details -->
+                                <h3>4. Finished Product Catalog Entry</h3>
+                                <div class="catalog-details-grid">
+                                    <div class="form-group">
+                                        <label>Outfit Category</label>
+                                        <input type="text" name="category" placeholder="e.g. Saree, Kurti, Suit" onfocus="showCategorySuggestions(this)" oninput="filterCategorySuggestions(this)">
+                                        <div class="autocomplete-suggestions"></div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Combine With (Fabrics)</label>
+                                        <input type="text" name="combineWith" placeholder="e.g. GS-1-P1">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Quantity (pcs)</label>
+                                        <input type="number" name="productQty" value="1">
+                                    </div>
+                                    <div class="form-group price-field">
+                                        <label>Retail Price (INR)</label>
+                                        <input type="number" name="productPrice" id="designProductPrice" placeholder="Finalized price">
+                                        <label class="custom-checkbox price-suggest-checkbox">
+                                            <input type="checkbox" name="suggestPrice" value="on" onchange="togglePriceField(this)">
+                                            <span class="checkmark"></span>
+                                            Suggest Price (Marginal profits pricing)
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-wand-magic-sparkles"></i> Design Fabrics & Catalog Product</button>
+                            </form>
+                        </div>
+                        
+                        <!-- Right Pane: Real-time designed materials cost calculator widget -->
+                        <div class="design-side-widget">
+                            <div class="dashboard-card status-card">
+                                <h3>Active Material Specs</h3>
+                                <div id="designMaterialsSpecList">
+                                    <p class="placeholder-text">Please select materials to inspect specs...</p>
+                                </div>
+                                <div class="calculated-math-card">
+                                    <h3>Designed Material Math</h3>
+                                    <div class="math-row"><span>Combined Base Cost:</span> <span id="mathBaseCost">Rs. 0.00</span></div>
+                                    <div class="math-row"><span>Operations Surcharge:</span> <span id="mathOpsCost">Rs. 0.00</span></div>
+                                    <div class="math-row"><span>Total Production Cost:</span> <strong id="mathTotalCost">Rs. 0.00</strong></div>
+                                    <div class="math-row"><span>Estimated Unit Cost:</span> <span id="mathUnitCost" class="highlight-text">Rs. 0.00</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. BILLING POS TAB -->
+                <div id="tab-billing" class="tab-panel">
+                    <div class="billing-grid">
+                        <!-- POS Cart Area -->
+                        <div class="dashboard-card pos-section">
+                            <div class="card-header">
+                                <h2>Point of Sale (POS)</h2>
+                                <p>Perform invoice checks, calculate discounts, and trigger print jobs.</p>
+                            </div>
+                            <form id="billingForm" onsubmit="submitBilling(event)">
+                                <div class="customer-lookup-area">
+                                    <div class="form-group search-group autocomplete-td">
+                                        <label>Customer Contact (Phone)</label>
+                                        <div class="input-with-icon">
+                                            <i class="fa-solid fa-phone"></i>
+                                            <input type="text" name="customerContact" id="billContact" placeholder="Search phone or type..." onfocus="showCustomerSuggestions(this, 'billing')" oninput="filterCustomerSuggestions(this, 'billing'); handleCustomerPhoneInput(this.value);" required>
+                                        </div>
+                                        <div class="autocomplete-suggestions"></div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Customer Name</label>
+                                        <input type="text" name="customerName" id="billName" required>
+                                    </div>
+                                    <div class="form-group flex-2">
+                                        <label>Address</label>
+                                        <input type="text" name="customerAddress" id="billAddress">
+                                    </div>
+                                </div>
+
+                                <div class="pos-cart-container">
+                                    <h3>Order Cart</h3>
+                                    <div class="table-container">
+                                        <table id="billCartTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Model Number / Product Code</th>
+                                                    <th>Quantity</th>
+                                                    <th>Unit Rate</th>
+                                                    <th>Total Amount</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td class="autocomplete-td">
+                                                        <input type="text" name="models[]" placeholder="Search product model code..." onfocus="showProductSuggestions(this)" oninput="filterProductSuggestions(this)" required>
+                                                        <div class="autocomplete-suggestions"></div>
+                                                    </td>
+                                                    <td><input type="number" name="quantities[]" value="1" min="1" oninput="recalcBillTotal()" required></td>
+                                                    <td><input type="number" class="row-rate" readonly value="0.00"></td>
+                                                    <td><input type="number" class="row-amount" readonly value="0.00"></td>
+                                                    <td><button type="button" class="btn btn-icon btn-danger" onclick="removeRow(this); recalcBillTotal();"><i class="fa-solid fa-trash"></i></button></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="addCartRow()"><i class="fa-solid fa-cart-plus"></i> Add Item</button>
+                                </div>
+
+                                <div class="checkout-summary-section">
+                                    <div class="checkout-fields">
+                                        <div class="form-group flex-2">
+                                            <label>Accessories (INR)</label>
+                                            <input type="number" name="accessories" id="billAccessories" placeholder="Surcharge" oninput="recalcBillTotal()">
+                                        </div>
+                                        <div class="form-group check-input">
+                                            <label class="custom-checkbox">
+                                                <input type="checkbox" name="discount" value="on" onchange="toggleDiscountField(this)">
+                                                <span class="checkmark"></span>
+                                                Discount (%)
+                                            </label>
+                                            <input type="number" name="addDiscount" id="billDiscount" value="5.0" oninput="recalcBillTotal()" disabled>
+                                        </div>
+                                        <div class="form-group flex-2">
+                                            <label>Immediate Payment Amount (INR)</label>
+                                            <input type="number" name="paidAmount" id="billPaidAmount" placeholder="0" oninput="recalcBillTotal()">
+                                            <label class="custom-checkbox flex-chk">
+                                                <input type="checkbox" name="fullpaid" value="on" id="billFullPaid" onchange="toggleFullPaid(this)">
+                                                <span class="checkmark"></span> Full Paid
+                                            </label>
+                                        </div>
+                                        <div class="form-group flex-2">
+                                            <label>Payment Method</label>
+                                            <div class="payment-methods-selection">
+                                                <label class="payment-method-label">
+                                                    <input type="checkbox" name="upiQR" value="on" checked>
+                                                    <span class="pm-box"><i class="fa-solid fa-qrcode"></i> UPI QR</span>
+                                                </label>
+                                                <label class="payment-method-label">
+                                                    <input type="checkbox" name="cash" value="on">
+                                                    <span class="pm-box"><i class="fa-solid fa-money-bill-1"></i> Cash</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="checkout-math-pane">
+                                        <div class="wallet-adjustment-badge" id="checkoutWalletBadge" style="display: none;">
+                                            Customer Wallet Credit: <strong id="checkoutWalletBal">Rs. 0.00</strong>
+                                        </div>
+                                        <div class="math-row"><span>Items Subtotal:</span> <span id="billSubtotal">Rs. 0.00</span></div>
+                                        <div class="math-row"><span>Discount Amount:</span> <span id="billDiscountAmount">Rs. 0.00</span></div>
+                                        <div class="math-row"><span>Adjusted Payable:</span> <strong id="billPayable">Rs. 0.00</strong></div>
+                                        <div class="math-row highlight"><span>Remaining Due Balance:</span> <strong id="billDueAmt">Rs. 0.00</strong></div>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="INVCno" id="billInvcNo" value="">
+                                <button type="submit" class="btn btn-success btn-block btn-lg"><i class="fa-solid fa-basket-shopping"></i> Finalize Bill & Generate Invoice</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. CUSTOM ORDERS TAB -->
+                <div id="tab-orders" class="tab-panel">
+                    <div class="orders-split-grid">
+                        <div class="dashboard-card form-section">
+                            <div class="card-header">
+                                <h2>Submit Custom Order</h2>
+                                <p>Register new boutique orders, designate target fabrics, and compile tracking links.</p>
+                            </div>
+                            <form id="orderForm" onsubmit="submitOrder(event)">
+                                <div class="customer-lookup-area">
+                                    <div class="form-group search-group autocomplete-td">
+                                        <label>Customer Phone</label>
+                                        <div class="input-with-icon">
+                                            <i class="fa-solid fa-phone"></i>
+                                            <input type="text" name="customerContact" id="orderContact" placeholder="Search phone or type..." onfocus="showCustomerSuggestions(this, 'orders')" oninput="filterCustomerSuggestions(this, 'orders'); handleOrderPhoneInput(this.value);" required>
+                                        </div>
+                                        <div class="autocomplete-suggestions"></div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Customer Name</label>
+                                        <input type="text" name="customerName" id="orderName" required>
+                                    </div>
+                                    <div class="form-group flex-2">
+                                        <label>Address</label>
+                                        <input type="text" name="customerAddress" id="orderAddress">
+                                    </div>
+                                </div>
+
+                                <div class="orders-items-container">
+                                    <h3>Desired Outfits & Fabrics</h3>
+                                    <div class="table-container">
+                                        <table id="orderItemsTable">
+                                            <thead>
+                                                <tr>
+                                                    <th>Desired Outfit Description</th>
+                                                    <th>Target Material Code</th>
+                                                    <th>Quantity</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><input type="text" name="products[]" placeholder="e.g. Potochitra Saree" required></td>
+                                                    <td class="autocomplete-td">
+                                                        <input type="text" name="models[]" placeholder="Select material code... (Optional)" onfocus="showMaterialSuggestions(this)" oninput="filterMaterialSuggestions(this)">
+                                                        <div class="autocomplete-suggestions"></div>
+                                                    </td>
+
+                                                    <td><input type="number" name="quantities[]" value="1" min="1" required></td>
+                                                    <td><button type="button" class="btn btn-icon btn-danger" onclick="removeRow(this)"><i class="fa-solid fa-trash"></i></button></td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="addOrderRow()"><i class="fa-solid fa-plus"></i> Add Outfit</button>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Add Accessory Details</label>
+                                    <input type="text" name="accessories" placeholder="e.g. Border Golden, Buttons Red">
+                                </div>
+
+                                <input type="hidden" name="ORDERno" id="orderNoInput" value="">
+                                <button type="submit" class="btn btn-primary btn-block"><i class="fa-solid fa-folder-plus"></i> Register Custom Order Card</button>
+                            </form>
+                        </div>
+
+                        <!-- Orders board tracking progress -->
+                        <div class="orders-board-section">
+                            <div class="dashboard-card status-card">
+                                <div class="card-header">
+                                    <h2>Crafting Progress Board</h2>
+                                    <button class="btn btn-secondary btn-sm" onclick="loadOrders()"><i class="fa-solid fa-arrows-rotate"></i> Sync Board</button>
+                                </div>
+                                <div class="orders-cards-list" id="orderCardsContainer">
+                                    <p class="placeholder-text">Syncing board or loading custom orders...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. PRODUCT CATALOG TAB -->
+                <div id="tab-catalog" class="tab-panel">
+                    <div class="dashboard-card">
+                        <div class="card-header flex-header">
+                            <h2>Antant Product Catalog</h2>
+                            <div class="catalog-controls">
+                                <input type="text" id="catalogSearchInput" placeholder="Filter by category or model..." oninput="filterCatalog(this.value)">
+                            </div>
+                        </div>
+                        <div class="catalog-grid" id="catalogGrid">
+                            <!-- Injected products cards -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. SEARCH INFO BREAKDOWN TAB -->
+                <div id="tab-search" class="tab-panel">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h2>Inventory & Code Lookup</h2>
+                            <p>Verify exact specification sheets, base costs, print, dye, applique, and stock logs instantly.</p>
+                        </div>
+                        <div class="lookup-search-container">
+                            <input type="text" id="lookupCodeInput" placeholder="Enter Material Code (e.g. KC-2) or Product Code (e.g. OW0-MoC-6-1)..." oninput="handleLookupInput(this.value)" onkeydown="if(event.key === 'Enter') executeLookup()">
+                            <button class="btn btn-primary" onclick="executeLookup()"><i class="fa-solid fa-eye"></i> Lookup Details</button>
+                        </div>
+                        <div id="lookupResultsContainer" class="lookup-results-wrapper">
+                            <div class="info-splash">
+                                <i class="fa-solid fa-box-open"></i>
+                                <p>Enter any code in the box above to break down cost components and inventory specs.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ----------------- MODALS & VIEWS ----------------- -->
+
+    <!-- Billing Invoice Checkout Preview Modal -->
+    <div class="modal-overlay" id="invoiceModal">
+        <div class="modal-content invoice-modal">
+            <div class="modal-header">
+                <h2>Invoice Check</h2>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="printReceipt()"><i class="fa-solid fa-print"></i> Thermal Print</button>
+                    <button class="btn btn-danger" onclick="closeInvoiceModal()"><i class="fa-solid fa-xmark"></i> Close</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="thermal-bill-container" id="invoiceViewArea">
+                    <!-- Thermal bill layout rendering -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggested Price Selection Modal -->
+    <div class="modal-overlay" id="suggestedPriceModal">
+        <div class="modal-content pricing-modal">
+            <div class="modal-header">
+                <h2>Boutique Price Selection</h2>
+            </div>
+            <div class="modal-body">
+                <p>We have calculated your textile design production cost. Choose a profit margin to finalize the catalog retail price:</p>
+                <div class="pricing-options-list" id="pricingOptionsContainer">
+                    <!-- Dynamic price suggestions options -->
+                </div>
+                <div class="custom-price-override">
+                    <label>Or input custom retail price override (INR)</label>
+                    <input type="number" id="customPriceOverrideInput" placeholder="Enter custom price...">
+                </div>
+
+                <!-- New Product Catalog Details for Website Compatibility -->
+                <div class="product-catalog-inputs" style="margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+                    <h3 style="font-family: var(--font-heading); font-size: 0.95rem; font-weight: 600; color: var(--accent-glow); text-transform: uppercase;">Website Catalog Details</h3>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; color: var(--text-sub);">Product Display Name</label>
+                        <input type="text" id="catalogProductNameInput" placeholder="e.g. Gorgeous Indigo Handblock Cotton Saree" style="padding: 8px 12px; font-size: 0.85rem;">
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; color: var(--text-sub);">Product Description</label>
+                        <textarea id="catalogProductDescInput" placeholder="Describe fabric quality, print details, and styling specifications..." style="width:100%; min-height:50px; background-color:rgba(255,255,255,0.03); border:1px solid var(--border-color); border-radius:8px; padding:8px; color:white; font-family:var(--font-body); font-size:0.85rem; outline:none; resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.78rem; color: var(--text-sub);">Product Catalog Photo (Optional)</label>
+                        <input type="file" id="catalogProductImageInput" accept="image/*" style="width:100%; color:var(--text-sub); font-size:0.8rem; margin-top: 4px;">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <input type="hidden" id="pricingModelNo" value="">
+                <button class="btn btn-primary" onclick="confirmSelectedPrice()"><i class="fa-solid fa-check"></i> Finalize Pricing & Catalog Product</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dynamic Due Slips Quick Viewer Overlay -->
+    <div class="due-slips-side-pane" id="dueSlipsPane">
+        <div class="pane-header">
+            <h3>Pending Due Invoices</h3>
+            <button class="close-pane-btn" onclick="toggleDueSlipsPane(false)">&times;</button>
+        </div>
+        <div class="pane-body" id="dueSlipsContainer">
+            <!-- Dynamic pending invoice logs -->
+        </div>
+    </div>
+    
+    <div class="floating-dues-trigger" onclick="toggleDueSlipsPane(true)">
+        <i class="fa-solid fa-bell-concierge"></i>
+        <span class="badge" id="dueSlipsCount">0</span>
+    </div>
+
+    <!-- Script references -->
+    <script src="static/js/main.js"></script>
+</body>
+</html>
+
