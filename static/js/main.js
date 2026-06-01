@@ -1027,6 +1027,9 @@ async function loadOrders() {
                 const div = document.createElement('div');
                 div.className = 'order-tracker-card';
                 
+                const apiBase = RENDER_BACKEND_URL || 'http://localhost:5000';
+                const customerLink = `${apiBase}/orderstatus/${card.id}`;
+                
                 let productListHtml = '';
                 card.products.forEach((prod, index) => {
                     const stage = card.status[prod] || 0;
@@ -1057,6 +1060,14 @@ async function loadOrders() {
                         <br>Address: <i>${card.address || 'None'}</i>
                     </div>
                     ${productListHtml}
+                    <div class="ot-card-link-container" style="margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <div style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 6px; font-size: 0.72rem; color: var(--text-sub);">
+                            <span class="customer-link-text">${customerLink}</span>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="copyCustomerLink(this, '${customerLink}')" style="padding: 6px 12px; font-size: 0.72rem; flex-shrink: 0; background: rgba(225,29,72,0.1); border-color: rgba(225,29,72,0.3); color: var(--accent-glow);">
+                            <i class="fa-solid fa-copy"></i> Copy Link
+                        </button>
+                    </div>
                 `;
 
 
@@ -1066,6 +1077,24 @@ async function loadOrders() {
     } catch (e) {
         container.innerHTML = '<p class="placeholder-text text-red">Failed to sync board from backend.</p>';
     }
+}
+
+function copyCustomerLink(btn, url) {
+    navigator.clipboard.writeText(url).then(() => {
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-check" style="color:var(--accent-green)"></i> Copied!';
+        btn.style.color = 'var(--accent-green)';
+        btn.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+        btn.style.background = 'rgba(34, 197, 94, 0.1)';
+        setTimeout(() => {
+            btn.innerHTML = originalContent;
+            btn.style.color = 'var(--accent-glow)';
+            btn.style.borderColor = 'rgba(225, 29, 72, 0.3)';
+            btn.style.background = 'rgba(225, 29, 72, 0.1)';
+        }, 2000);
+    }).catch(err => {
+        alert("Failed to copy link: " + err);
+    });
 }
 
 async function updateCardStatus(orderId, product, newStage) {
