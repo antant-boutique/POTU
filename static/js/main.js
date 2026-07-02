@@ -16,8 +16,78 @@ const categorySuggestions = [
     "saree", "suit", "kurti", "blouse", "dress", "shawl", "fabric", "dupatta"
 ];
 
+// ----------------- NETWORK & UI HELPERS -----------------
+
+/*
+ * apiFetch: fetch with a hard timeout. The free-tier Render backend can be slow
+ * or hung; without a timeout the UI would wait forever ("stuck"). On timeout the
+ * request aborts and throws, so callers surface a real error instead of freezing.
+ */
+async function apiFetch(url, options = {}, timeoutMs = 45000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+// Inject overlay styles once (keeps this fix self-contained in JS).
+function ensureOverlayStyles() {
+    if (document.getElementById('busyOverlayStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'busyOverlayStyles';
+    style.textContent = `
+        #globalBusyOverlay{position:fixed;inset:0;z-index:9999;display:none;
+            align-items:center;justify-content:center;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);}
+        #globalBusyOverlay.active{display:flex;}
+        #globalBusyOverlay .busy-box{background:#fff;color:#111;padding:26px 34px;border-radius:14px;
+            text-align:center;max-width:80%;box-shadow:0 12px 40px rgba(0,0,0,.35);}
+        #globalBusyOverlay .busy-spinner{width:40px;height:40px;margin:0 auto 14px;border-radius:50%;
+            border:4px solid #eee;border-top-color:#c1121f;animation:busySpin .8s linear infinite;}
+        #globalBusyOverlay p{margin:0;font-size:.95rem;line-height:1.4;}
+        @keyframes busySpin{to{transform:rotate(360deg);}}
+    `;
+    document.head.appendChild(style);
+}
+
+// Full-screen blocking overlay shown during writes and server warm-up.
+function showOverlay(message = 'Working…') {
+    ensureOverlayStyles();
+    let ov = document.getElementById('globalBusyOverlay');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'globalBusyOverlay';
+        ov.innerHTML = '<div class="busy-box"><div class="busy-spinner"></div><p id="globalBusyMsg"></p></div>';
+        document.body.appendChild(ov);
+    }
+    document.getElementById('globalBusyMsg').innerText = message;
+    ov.classList.add('active');
+}
+
+function hideOverlay() {
+    const ov = document.getElementById('globalBusyOverlay');
+    if (ov) ov.classList.remove('active');
+}
+
+// Light ping to keep the free-tier Render instance awake while the tab is open.
+async function pingBackend() {
+    try { await apiFetch('/api/health', {}, 8000); } catch (e) { /* ignore */ }
+}
+
 // Document Ready Bootstrap
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Free-tier instances cold-start (~50s). Warm the backend first with a clear
+    // message so the very first action of the day doesn't look frozen.
+    showOverlay('Connecting to server… First load can take up to a minute on free hosting.');
+    try {
+        await apiFetch('/api/health', {}, 60000);
+    } catch (e) {
+        console.warn('Warm-up ping failed; loading anyway.', e);
+    }
+    hideOverlay();
+
     // Initial fetch logs
     loadDashboard();
     syncInventoryCache();
@@ -28,6 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Auto-calculating hooks
     recalcDesignTotal();
     recalcBillTotal();
+
+    // Keep the instance warm while the app stays open (free tier sleeps after ~15 min).
+    setInterval(pingBackend, 10 * 60 * 1000);
 });
 
 // ----------------- TAB WORKSPACE SYSTEM -----------------
@@ -53,7 +126,7 @@ function switchTab(event, tabId) {
 
 async function loadDashboard() {
     try {
-        const response = await fetch('/api/dashboard');
+        const response = await apiFetch('/api/dashboard');
         const data = await response.json();
         
         if (data.status === 'success') {
@@ -110,7 +183,7 @@ async function loadDashboard() {
 
 async function syncInventoryCache() {
     try {
-        const res = await fetch('/api/inventory');
+        const res = await apiFetch('/api/inventory');
         const data = await res.json();
         if (data.status === 'success') {
             inventoryCache = data;
@@ -122,7 +195,7 @@ async function syncInventoryCache() {
 
 async function loadCustomersCache() {
     try {
-        const res = await fetch('/api/customers');
+        const res = await apiFetch('/api/customers');
         const data = await res.json();
         if (data.status === 'success') {
             customersCache = data.customers;
@@ -179,14 +252,15 @@ async function submitMaterials(event) {
         payload.price.push(row.querySelector('input[name="price"]').value);
     });
     
+    showOverlay('Adding materials…');
     try {
-        const response = await fetch('/api/materials/add', {
+        const response = await apiFetch('/api/materials/add', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
         });
         const result = await response.json();
-        
+
         if (result.status === 'success') {
             alert(result.summary);
             form.reset();
@@ -208,7 +282,9 @@ async function submitMaterials(event) {
             alert("Error: " + result.message);
         }
     } catch (e) {
-        alert("Upload failed. Check server status.");
+        alert("Upload failed. Check server status and try again.");
+    } finally {
+        hideOverlay();
     }
 }
 
@@ -448,14 +524,15 @@ async function submitDesign(event) {
         }
     }
     
+    showOverlay('Saving textile design…');
     try {
-        const response = await fetch('/api/designs/create', {
+        const response = await apiFetch('/api/designs/create', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
         const result = await response.json();
-        
+
         if (result.status === 'success') {
             if (result.suggested_prices) {
                 // Open price wizard modal
@@ -468,10 +545,12 @@ async function submitDesign(event) {
             syncInventoryCache();
             loadDashboard();
         } else {
-            alert("Design failed: " + result.message);
+            alert("Design failed: " + (result.message || 'Unknown error.'));
         }
     } catch (e) {
-        alert("Server failed to respond.");
+        alert("Server failed to respond. Please check your connection and try again.");
+    } finally {
+        hideOverlay();
     }
 }
 
@@ -540,12 +619,13 @@ async function confirmSelectedPrice() {
         }
     }
     
+    showOverlay('Approving product…');
     try {
-        const response = await fetch('/api/products/finalize-price', {
+        const response = await apiFetch('/api/products/finalize-price', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                model_no: modelNo, 
+                model_no: modelNo,
                 price: finalPrice,
                 name: catalogName,
                 description: catalogDesc,
@@ -557,9 +637,15 @@ async function confirmSelectedPrice() {
             alert(res.message);
             document.getElementById('suggestedPriceModal').classList.remove('active');
             syncInventoryCache();
+            loadDashboard();
+        } else {
+            // Previously this branch did nothing, leaving the modal stuck open with no feedback.
+            alert("Could not approve product: " + (res.message || 'Unknown error.'));
         }
     } catch (e) {
-        alert("Failed to finalize pricing.");
+        alert("Failed to finalize pricing. Please try again.");
+    } finally {
+        hideOverlay();
     }
 }
 
@@ -813,14 +899,15 @@ async function submitBilling(event) {
         data['quantities[]'].push(row.querySelector('input[name="quantities[]"]').value);
     });
     
+    showOverlay('Processing invoice…');
     try {
-        const response = await fetch('/api/billing/invoice', {
+        const response = await apiFetch('/api/billing/invoice', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
         const result = await response.json();
-        
+
         if (result.status === 'success') {
             form.reset();
             // Maintain single cart row
@@ -846,10 +933,12 @@ async function submitBilling(event) {
             loadDashboard();
             loadDues();
         } else {
-            alert("Checkout failed: " + result.message);
+            alert("Checkout failed: " + (result.message || 'Unknown error.'));
         }
     } catch (e) {
-        alert("Billing transaction failed.");
+        alert("Billing transaction failed. Please try again.");
+    } finally {
+        hideOverlay();
     }
 }
 
@@ -967,14 +1056,15 @@ async function submitOrder(event) {
         data['quantities[]'].push(row.querySelector('input[name="quantities[]"]').value);
     });
     
+    showOverlay('Registering custom order…');
     try {
-        const response = await fetch('/api/orders/create', {
+        const response = await apiFetch('/api/orders/create', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
         });
         const result = await response.json();
-        
+
         if (result.status === 'success') {
             alert(`Custom order card processed successfully! OrderID: #${result.order_id}`);
             form.reset();
@@ -1000,10 +1090,12 @@ async function submitOrder(event) {
             loadOrders();
             loadDashboard();
         } else {
-            alert("Failed to submit custom order card: " + result.message);
+            alert("Failed to submit custom order card: " + (result.message || 'Unknown error.'));
         }
     } catch (e) {
-        alert("Server failed to respond.");
+        alert("Server failed to respond. Please try again.");
+    } finally {
+        hideOverlay();
     }
 }
 
