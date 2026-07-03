@@ -683,16 +683,16 @@ function filterProductSuggestions(input) {
     // code, reflect its rate in the row (and clear it again if the code is
     // edited into something unknown) so the bill total is always live.
     const row = input.closest('tr');
-    const exact = inventoryCache.products.find(p => p.code.toLowerCase() === val.trim());
+    const exact = inventoryCache.products.find(p => (p.code || '').toLowerCase() === val.trim());
     row.querySelector('.row-rate').value = exact ? exact.price : 0;
     recalcBillTotal();
 
-    const matches = inventoryCache.products.filter(p => 
-        p.code.toLowerCase().includes(val) || 
-        p.name.toLowerCase().includes(val) || 
-        p.category.toLowerCase().includes(val)
+    const matches = inventoryCache.products.filter(p =>
+        (p.code || '').toLowerCase().includes(val) ||
+        (p.name || '').toLowerCase().includes(val) ||
+        (p.category || '').toLowerCase().includes(val)
     );
-    
+
     if (matches.length === 0) {
         list.innerHTML = '<div class="suggestion-item">No stock matched</div>';
     } else {
@@ -793,9 +793,9 @@ function filterCustomerSuggestions(input, mode) {
     list.innerHTML = '';
     
     // Search both keys and values of customersCache
-    const matches = customersCache.filter(c => 
-        c.phone.toLowerCase().includes(val) || 
-        c.name.toLowerCase().includes(val)
+    const matches = customersCache.filter(c =>
+        (c.phone || '').toLowerCase().includes(val) ||
+        (c.name || '').toLowerCase().includes(val)
     );
     
     if (matches.length === 0) {
