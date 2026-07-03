@@ -2015,3 +2015,27 @@ input[type="number"]:focus {
     }
 }
 
+
+/* ----------------- DUE BILLS TAB ----------------- */
+
+.nav-item .nav-badge {
+    margin-left: auto;
+    background-color: var(--accent-red);
+    color: white;
+    font-size: 0.72rem;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dues-tab-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}

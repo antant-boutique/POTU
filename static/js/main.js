@@ -120,6 +120,7 @@ function switchTab(event, tabId) {
     if (tabId === 'dashboard') loadDashboard();
     if (tabId === 'catalog') renderCatalogGrid();
     if (tabId === 'orders') loadOrders();
+    if (tabId === 'dues') loadDues();
 }
 
 // ----------------- SYNCHRONIZE CACHES -----------------
@@ -677,7 +678,15 @@ function filterProductSuggestions(input) {
     const val = input.value.toLowerCase();
     const list = input.parentNode.querySelector('.autocomplete-suggestions');
     list.innerHTML = '';
-    
+
+    // Dynamic pricing: the moment the typed value resolves to a real product
+    // code, reflect its rate in the row (and clear it again if the code is
+    // edited into something unknown) so the bill total is always live.
+    const row = input.closest('tr');
+    const exact = inventoryCache.products.find(p => p.code.toLowerCase() === val.trim());
+    row.querySelector('.row-rate').value = exact ? exact.price : 0;
+    recalcBillTotal();
+
     const matches = inventoryCache.products.filter(p => 
         p.code.toLowerCase().includes(val) || 
         p.name.toLowerCase().includes(val) || 
@@ -1319,17 +1328,7 @@ function filterCatalog(query) {
     });
 }
 
-// ----------------- DUES & OVERLAY PANEL -----------------
-
-function toggleDueSlipsPane(show) {
-    const pane = document.getElementById('dueSlipsPane');
-    if (show) {
-        loadDues();
-        pane.classList.add('active');
-    } else {
-        pane.classList.remove('active');
-    }
-}
+// ----------------- DUE BILLS TAB -----------------
 
 async function loadDues() {
     const container = document.getElementById('dueSlipsContainer');
@@ -1351,7 +1350,7 @@ async function loadDues() {
                 div.className = 'due-invoice-slip-card';
                 div.innerHTML = `
                     <div class="due-card-header">
-                        <span>Invoice: ${due.invoice_id}</span>
+                        <span>Invoice: ${due.invoice_id}${due.date ? ' &middot; ' + due.date : ''}</span>
                         <span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>
                     </div>
                     <div class="due-card-client">
@@ -1379,8 +1378,7 @@ function prefillDueSlipsPayment(invoiceId) {
             const due = data.dues.find(d => d.invoice_id === invoiceId);
             if (due) {
                 switchTab(null, 'billing');
-                toggleDueSlipsPane(false);
-                
+
                 // Prefill fields
                 document.getElementById('billContact').value = due.contact;
                 document.getElementById('billName').value = due.name;
@@ -1395,7 +1393,7 @@ function prefillDueSlipsPayment(invoiceId) {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td class="autocomplete-td">
-                            <input type="text" name="models[]" value="${model}" required>
+                            <input type="text" name="models[]" value="${model}" onfocus="showProductSuggestions(this)" oninput="filterProductSuggestions(this)" required>
                             <div class="autocomplete-suggestions"></div>
                         </td>
                         <td><input type="number" name="quantities[]" value="${due.quantities[index]}" min="1" oninput="recalcBillTotal()" required></td>

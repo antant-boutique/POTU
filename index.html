@@ -51,6 +51,10 @@
                 <a href="#" class="nav-item" onclick="switchTab(event, 'billing')">
                     <i class="fa-solid fa-receipt"></i><span>Billing & POS</span>
                 </a>
+                <a href="#" class="nav-item" onclick="switchTab(event, 'dues')">
+                    <i class="fa-solid fa-hourglass-half"></i><span>Due Bills</span>
+                    <span class="nav-badge" id="dueSlipsCount">0</span>
+                </a>
                 <a href="#" class="nav-item" onclick="switchTab(event, 'orders')">
                     <i class="fa-solid fa-truck-ramp-box"></i><span>Custom Orders</span>
                 </a>
@@ -551,6 +555,19 @@
                     </div>
                 </div>
 
+                <!-- 6b. PENDING DUE BILLS TAB -->
+                <div id="tab-dues" class="tab-panel">
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h2>Pending Due Invoices</h2>
+                            <p>Outstanding bills sorted oldest first — settle each one with its Pay Remaining Due shortcut.</p>
+                        </div>
+                        <div id="dueSlipsContainer" class="dues-tab-body">
+                            <!-- Dynamic pending invoice logs -->
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 7. SEARCH INFO BREAKDOWN TAB -->
                 <div id="tab-search" class="tab-panel">
                     <div class="dashboard-card">
@@ -632,22 +649,6 @@
                 <button class="btn btn-primary" onclick="confirmSelectedPrice()"><i class="fa-solid fa-check"></i> Finalize Pricing & Catalog Product</button>
             </div>
         </div>
-    </div>
-
-    <!-- Dynamic Due Slips Quick Viewer Overlay -->
-    <div class="due-slips-side-pane" id="dueSlipsPane">
-        <div class="pane-header">
-            <h3>Pending Due Invoices</h3>
-            <button class="close-pane-btn" onclick="toggleDueSlipsPane(false)">&times;</button>
-        </div>
-        <div class="pane-body" id="dueSlipsContainer">
-            <!-- Dynamic pending invoice logs -->
-        </div>
-    </div>
-    
-    <div class="floating-dues-trigger" onclick="toggleDueSlipsPane(true)">
-        <i class="fa-solid fa-bell-concierge"></i>
-        <span class="badge" id="dueSlipsCount">0</span>
     </div>
 
     <!-- Script references -->
