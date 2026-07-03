@@ -172,7 +172,7 @@ body {
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
-    background-color: rgba(12, 18, 32, 0.2);
+    background-color: rgba(10, 10, 10, 0.6);
     backdrop-filter: var(--glass-blur);
 }
 
@@ -455,7 +455,7 @@ input[type="number"]:focus {
     top: 100%;
     left: 0;
     right: 0;
-    background-color: #121826;
+    background-color: #161616;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     max-height: 200px;
@@ -626,6 +626,21 @@ input[type="number"]:focus {
     color: white;
 }
 
+/* Checkboxes acting as a field label (Discount %) or trailing an input
+   (Full Paid) need breathing room so the tick box never overlaps fields */
+.custom-checkbox {
+    min-height: 20px;
+    line-height: 20px;
+}
+
+.check-input .custom-checkbox {
+    margin-bottom: 2px;
+}
+
+.flex-chk {
+    margin-top: 6px;
+}
+
 /* Toggle Switches */
 .toggle-switch {
     display: inline-flex;
@@ -735,13 +750,12 @@ input[type="number"]:focus {
     border: 1px dashed rgba(225, 29, 72, 0.2);
     border-radius: 12px;
     padding: 20px;
-    position: relative;
 }
 
+/* Flows below the price input instead of overlapping it */
 .price-suggest-checkbox {
-    position: absolute;
-    right: 20px;
-    top: 52px;
+    margin-top: 4px;
+    min-height: 20px;
 }
 
 /* Spec sheet sidebar spec card (Textile Design) */
@@ -1121,7 +1135,7 @@ input[type="number"]:focus {
 }
 
 .modal-content {
-    background-color: #101626;
+    background-color: #101010;
     border: 1px solid var(--border-color);
     border-radius: 16px;
     max-width: 500px;
@@ -1145,6 +1159,14 @@ input[type="number"]:focus {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
 .modal-header h2 {
@@ -1155,7 +1177,7 @@ input[type="number"]:focus {
 
 .modal-body {
     padding: 24px;
-    max-height: 480px;
+    max-height: min(480px, 70dvh);
     overflow-y: auto;
 }
 
@@ -1232,100 +1254,6 @@ input[type="number"]:focus {
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--accent-green);
-}
-
-/* Floating dues slips viewer trigger */
-.floating-dues-trigger {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 58px;
-    height: 58px;
-    border-radius: 50%;
-    background-color: var(--accent-glow);
-    box-shadow: 0 4px 20px rgba(225, 29, 72, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 90;
-    transition: var(--transition-smooth);
-    color: white;
-    font-size: 1.4rem;
-}
-
-.floating-dues-trigger:hover {
-    transform: scale(1.1) rotate(5deg);
-    box-shadow: 0 6px 25px rgba(225, 29, 72, 0.6);
-}
-
-.floating-dues-trigger .badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background-color: var(--accent-red);
-    color: white;
-    font-size: 0.72rem;
-    font-weight: 700;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 2px solid var(--bg-dark);
-}
-
-/* Dues side-pane panel drawer */
-.due-slips-side-pane {
-    position: fixed;
-    top: 0;
-    right: -360px;
-    width: 350px;
-    height: 100vh;
-    background-color: #0c1220;
-    border-left: 1px solid var(--border-color);
-    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.5);
-    z-index: 95;
-    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    display: flex;
-    flex-direction: column;
-}
-
-.due-slips-side-pane.active {
-    right: 0;
-}
-
-.pane-header {
-    padding: 24px;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.pane-header h3 {
-    font-family: var(--font-heading);
-    font-size: 1.15rem;
-    font-weight: 600;
-}
-
-.close-pane-btn {
-    background: none;
-    border: none;
-    color: var(--text-sub);
-    font-size: 1.8rem;
-    cursor: pointer;
-    line-height: 1;
-}
-
-.pane-body {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
 }
 
 .due-invoice-slip-card {
@@ -1512,22 +1440,16 @@ input[type="number"]:focus {
    Mobile & Tablet Responsive Optimizations
    ========================================================================== */
 
-@media (max-width: 992px) {
-    .design-split-grid {
-        grid-template-columns: 1fr;
-    }
-    .orders-split-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-@media (max-width: 768px) {
+/* --------------------------------------------------------------------------
+   Tablets & phones (≤1024px): smartphone-style bottom taskbar + single column
+   -------------------------------------------------------------------------- */
+@media (max-width: 1024px) {
     body {
         overflow: hidden;
         height: 100vh;
         height: 100dvh;
     }
-    
+
     .app-container {
         flex-direction: column-reverse;
         width: 100vw;
@@ -1535,28 +1457,28 @@ input[type="number"]:focus {
         height: 100dvh;
         overflow: hidden;
     }
-    
-    /* Collapsible bottom nav bar for premium mobile UX */
+
+    /* Bottom taskbar navigation (respects home-indicator safe area) */
     .sidebar {
         width: 100%;
-        height: 65px;
+        height: calc(65px + env(safe-area-inset-bottom, 0px));
         position: relative;
         bottom: auto;
         left: auto;
         right: auto;
         flex-direction: row;
-        padding: 0;
+        padding: 0 0 env(safe-area-inset-bottom, 0px) 0;
         border-right: none;
         border-top: 1px solid var(--border-color);
         background-color: #0a0a0a;
         z-index: 100;
         overflow: hidden;
     }
-    
+
     .brand, .sidebar-footer {
         display: none !important;
     }
-    
+
     .nav-menu {
         flex-direction: row;
         width: 100%;
@@ -1570,11 +1492,11 @@ input[type="number"]:focus {
         white-space: nowrap;
         -webkit-overflow-scrolling: touch;
     }
-    
+
     .nav-menu::-webkit-scrollbar {
         display: none; /* Hide scrollbars for premium clean look */
     }
-    
+
     .nav-item {
         flex-direction: column;
         align-items: center;
@@ -1590,31 +1512,46 @@ input[type="number"]:focus {
         color: var(--text-sub);
         min-width: 82px;
     }
-    
+
     .nav-item i {
         font-size: 1.15rem;
         width: auto;
     }
-    
+
     .nav-item span {
         display: block;
         font-size: 0.58rem;
         font-weight: 600;
         white-space: nowrap;
     }
-    
+
     .nav-item:hover {
         background: none !important;
         color: var(--text-main);
     }
-    
+
     .nav-item.active {
         color: var(--accent-glow) !important;
         border: none;
         box-shadow: none;
     }
-    
-    /* Main content overrides */
+
+    /* Badge shown as small dot-count over the icon column */
+    .nav-item .nav-badge {
+        margin-left: 0;
+        min-width: 16px;
+        height: 16px;
+        font-size: 0.6rem;
+        position: absolute;
+        top: 2px;
+        right: 14px;
+    }
+
+    .nav-item {
+        position: relative;
+    }
+
+    /* Main content fills the space above the taskbar */
     .main-content {
         margin-bottom: 0;
         flex-grow: 1;
@@ -1623,7 +1560,30 @@ input[type="number"]:focus {
         flex-direction: column;
         overflow: hidden;
     }
-    
+
+    .tab-scroll-container {
+        overflow-y: auto;
+        flex-grow: 1;
+    }
+
+    /* Split panes collapse to a single column */
+    .design-split-grid,
+    .orders-split-grid,
+    .billing-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .design-side-widget,
+    .orders-board-section {
+        position: relative;
+        top: auto;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Phones (≤768px): compact density on top of the taskbar layout above
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
     .content-header {
         padding: 0 15px;
         height: 50px;
@@ -1850,6 +1810,16 @@ input[type="number"]:focus {
         overflow-x: hidden !important;
         margin-bottom: 6px;
     }
+
+    /* Entry tables stack as cards — let them grow so autocomplete
+       suggestion dropdowns are never clipped by a scrolling container */
+    .table-container:has(#materialsEntryTable),
+    .table-container:has(#designMaterialsTable),
+    .table-container:has(#billCartTable),
+    .table-container:has(#orderItemsTable) {
+        max-height: none;
+        overflow: visible !important;
+    }
     
     table th, table td {
         padding: 5px 6px;
@@ -1982,14 +1952,6 @@ input[type="number"]:focus {
     }
     
     .modal-header h2 {
-        font-size: 1rem;
-    }
-    
-    .floating-dues-trigger {
-        bottom: 75px;
-        right: 15px;
-        width: 44px;
-        height: 44px;
         font-size: 1rem;
     }
     
