@@ -1306,9 +1306,46 @@ function renderCatalogGrid() {
             <div class="pcard-category">${p.category}</div>
             <div class="pcard-desc">${p.name || 'Handcrafted Design (' + p.mat_code + ')'}</div>
             <div class="pcard-price">Rs. ${p.price.toFixed(2)}</div>
+            <div class="pcard-stock-controls">
+                <input type="number" min="1" value="1" title="Pieces to add">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="adjustCatalogStock('${p.code}', this)"><i class="fa-solid fa-plus"></i> Add Stock</button>
+            </div>
         `;
         grid.appendChild(div);
     });
+}
+
+async function adjustCatalogStock(code, btn) {
+    const input = btn.closest('.pcard-stock-controls').querySelector('input');
+    const add = parseInt(input.value, 10);
+    if (!add || add < 1) {
+        alert("Enter how many pieces to add (1 or more).");
+        return;
+    }
+
+    showOverlay(`Adding ${add} pc(s) to ${code}…`);
+    try {
+        const response = await apiFetch('/api/products/adjust-stock', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model_no: code, add: add})
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            await syncInventoryCache();
+            renderCatalogGrid();
+            // Re-apply any active catalog filter after the re-render
+            const q = document.getElementById('catalogSearchInput').value;
+            if (q) filterCatalog(q);
+        } else {
+            alert("Could not add stock: " + (result.message || 'Unknown error.'));
+        }
+    } catch (e) {
+        alert("Server failed to respond. Please try again.");
+    } finally {
+        hideOverlay();
+    }
 }
 
 function filterCatalog(query) {

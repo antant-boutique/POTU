@@ -2039,3 +2039,24 @@ input[type="number"]:focus {
     gap: 16px;
     margin-top: 16px;
 }
+
+/* ----------------- CATALOG MANUAL RESTOCK ----------------- */
+
+.pcard-stock-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.pcard-stock-controls input {
+    width: 64px;
+    padding: 6px 8px;
+    background-color: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: inherit;
+    text-align: center;
+}
