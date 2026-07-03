@@ -169,9 +169,9 @@ async function loadDashboard() {
                         <td>${row.remarks}</td>
                         <td class="${cardClass}">Rs. ${parseFloat(cardTrx).toFixed(2)}</td>
                         <td class="${cashClass}">Rs. ${parseFloat(cashTrx).toFixed(2)}</td>
-                        <td>Rs. ${row.card_balance.toFixed(2)}</td>
-                        <td>Rs. ${row.cash_balance.toFixed(2)}</td>
-                        <td class="highlight-total">Rs. ${row.total_balance.toFixed(2)}</td>
+                        <td>Rs. ${Number(row.card_balance || 0).toFixed(2)}</td>
+                        <td>Rs. ${Number(row.cash_balance || 0).toFixed(2)}</td>
+                        <td class="highlight-total">Rs. ${Number(row.total_balance || 0).toFixed(2)}</td>
                     `;
                     tbody.appendChild(tr);
                 });
