@@ -936,8 +936,12 @@ async function submitBilling(event) {
             document.getElementById('checkoutWalletBal').innerText = 'Rs. 0.00';
             recalcBillTotal();
             
-            // Show Thermal invoice Preview Modal
-            openInvoiceModal(result.invoice_id);
+            // Show the printable receipt built from the checkout result plus
+            // the customer details captured before the form was reset.
+            openInvoiceModal(Object.assign({}, result, {
+                customer: data.customerName,
+                phone: data.customerContact
+            }));
             syncInventoryCache();
             loadDashboard();
             loadDues();
@@ -951,55 +955,52 @@ async function submitBilling(event) {
     }
 }
 
-async function openInvoiceModal(invoiceId) {
-    try {
-        const res = await fetch(`/api/dues`); // dues slips endpoint holds details
-        const data = await res.json();
-        
-        // Find matching slip
-        let billData = data.dues.find(d => d.invoice_id === invoiceId);
-        
-        // If not found in dues (means fully paid), retrieve or display receipt details
-        const container = document.getElementById('invoiceViewArea');
-        container.innerHTML = `
-            <div style="text-align:center; padding:10px;">
+// Render a real, printable thermal receipt from the checkout result.
+function openInvoiceModal(bill) {
+    const money = v => 'Rs. ' + Number(v || 0).toFixed(0);
+    const rows = (bill.items || []).map(it => `
+        <tr>
+            <td>${it.name || ''}<div class="tr-code">${it.code || ''}</div></td>
+            <td class="rt">${Number(it.qty || 0)}</td>
+            <td class="rt">${Number(it.rate || 0).toFixed(0)}</td>
+            <td class="rt">${Number(it.amount || 0).toFixed(0)}</td>
+        </tr>`).join('');
+
+    document.getElementById('invoiceViewArea').innerHTML = `
+        <div class="thermal-receipt" id="thermalReceipt">
+            <div class="tr-head">
                 <h3>ANTANT BOUTIQUE</h3>
-                <p>fits you inside</p>
-                <p>Date: ${new Date().toLocaleDateString()}</p>
-                <p>Invoice #: ${invoiceId}</p>
-                <hr style="border:1px dashed #ccc; margin:10px 0;">
-                <p>Transaction processed successfully.</p>
-                <p>Local PDF generated at: LocalInvoicePDFs/${invoiceId}.pdf</p>
-                <hr style="border:1px dashed #ccc; margin:10px 0;">
-                <h4>Thank You</h4>
+                <p class="tr-tag">fits you inside</p>
+                <p>Invoice: <strong>${bill.invoice_id || ''}</strong></p>
+                <p>${new Date().toLocaleString()}</p>
+                ${bill.customer ? `<p>${bill.customer}${bill.phone ? ' &middot; ' + bill.phone : ''}</p>` : ''}
             </div>
-        `;
-        
-        document.getElementById('invoiceModal').classList.add('active');
-        // Save current active invoice ID inside modal trigger
-        document.getElementById('invoiceModal').setAttribute('data-invoice-id', invoiceId);
-    } catch (e) {
-        console.error(e);
-    }
+            <table class="tr-items">
+                <thead><tr><th>Item</th><th class="rt">Qty</th><th class="rt">Rate</th><th class="rt">Amt</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="4">No items</td></tr>'}</tbody>
+            </table>
+            <div class="tr-totals">
+                <div><span>Subtotal</span><span>${money(bill.subtotal)}</span></div>
+                ${Number(bill.discount) > 0 ? `<div><span>Discount</span><span>- ${money(bill.discount)}</span></div>` : ''}
+                <div class="tr-grand"><span>Total</span><span>${money(bill.total)}</span></div>
+                <div><span>Paid</span><span>${money(bill.paid)}</span></div>
+                <div class="${Number(bill.due) > 0 ? 'tr-due' : ''}"><span>Due</span><span>${money(bill.due)}</span></div>
+            </div>
+            <div class="tr-foot"><p>Thank you for shopping with us!</p></div>
+        </div>
+    `;
+    document.getElementById('invoiceModal').classList.add('active');
 }
 
 function closeInvoiceModal() {
     document.getElementById('invoiceModal').classList.remove('active');
 }
 
-async function printReceipt() {
-    const invoiceId = document.getElementById('invoiceModal').getAttribute('data-invoice-id');
-    try {
-        const response = await fetch('/api/billing/print', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({invoice_id: invoiceId})
-        });
-        const res = await response.json();
-        alert(res.message);
-    } catch (e) {
-        alert("Printing command failed.");
-    }
+// Printing happens in the browser: the server (Render) has no access to a
+// thermal printer. window.print() + the @media print stylesheet isolates the
+// receipt; choose the thermal printer (or Save as PDF) in the print dialog.
+function printReceipt() {
+    window.print();
 }
 
 // ----------------- CUSTOM ORDERS SYSTEM -----------------

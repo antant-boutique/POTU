@@ -2060,3 +2060,54 @@ input[type="number"]:focus {
     color: inherit;
     text-align: center;
 }
+
+/* ----------------- THERMAL RECEIPT (screen + print) ----------------- */
+
+.thermal-receipt {
+    width: 300px;
+    max-width: 100%;
+    margin: 0 auto;
+    background: #fff;
+    color: #000;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 16px;
+    border-radius: 6px;
+}
+
+.thermal-receipt .tr-head { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 8px; margin-bottom: 8px; }
+.thermal-receipt .tr-head h3 { margin: 0; font-size: 18px; letter-spacing: 1px; }
+.thermal-receipt .tr-head p { margin: 2px 0; font-size: 12px; }
+.thermal-receipt .tr-tag { font-style: italic; }
+
+.thermal-receipt .tr-items { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.thermal-receipt .tr-items th,
+.thermal-receipt .tr-items td { text-align: left; padding: 4px 2px; vertical-align: top; border-bottom: 1px dotted #bbb; }
+.thermal-receipt .tr-items th { border-bottom: 1px solid #000; }
+.thermal-receipt .rt { text-align: right; white-space: nowrap; }
+.thermal-receipt .tr-code { font-size: 10px; color: #555; }
+
+.thermal-receipt .tr-totals { border-top: 1px dashed #000; margin-top: 8px; padding-top: 8px; }
+.thermal-receipt .tr-totals > div { display: flex; justify-content: space-between; margin: 2px 0; }
+.thermal-receipt .tr-grand { font-weight: 700; font-size: 15px; border-top: 1px solid #000; margin-top: 4px; padding-top: 4px; }
+.thermal-receipt .tr-due { font-weight: 700; color: #c00; }
+
+.thermal-receipt .tr-foot { text-align: center; border-top: 1px dashed #000; margin-top: 8px; padding-top: 8px; font-size: 12px; }
+
+@media print {
+    body * { visibility: hidden; }
+    #thermalReceipt, #thermalReceipt * { visibility: visible; }
+    #thermalReceipt {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 72mm;
+        margin: 0;
+        padding: 0;
+        border-radius: 0;
+        font-size: 12px;
+    }
+    .modal-overlay { position: static; background: none; padding: 0; }
+    @page { margin: 4mm; }
+}
