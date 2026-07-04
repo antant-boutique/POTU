@@ -900,6 +900,7 @@ async function submitBilling(event) {
         fullpaid: document.getElementById('billFullPaid').checked ? 'on' : 'off',
         upiQR: form.querySelector('input[name="upiQR"]').checked ? 'on' : 'off',
         cash: form.querySelector('input[name="cash"]').checked ? 'on' : 'off',
+        printInvoice: document.getElementById('billPrintInvoice').checked ? 'on' : 'off',
         INVCno: document.getElementById('billInvcNo').value
     };
     
