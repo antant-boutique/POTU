@@ -11,6 +11,15 @@ let inventoryCache = {
 
 let customersCache = [];
 
+// Amount already collected on the invoice currently loaded in the billing form.
+// Non-zero only when a due bill is opened via "Pay Remaining Due"; the backend
+// adds this to the new payment, so the form must subtract it to show the real
+// outstanding balance instead of zero.
+let billPriorPaid = 0;
+
+// In-memory copy of the dues list so the sort filter can re-render without refetching.
+let duesCache = [];
+
 // Category hints matching old bot prodtype options
 const categorySuggestions = [
     "saree", "suit", "kurti", "blouse", "dress", "shawl", "fabric", "dupatta"
@@ -121,6 +130,9 @@ function switchTab(event, tabId) {
     if (tabId === 'catalog') renderCatalogGrid();
     if (tabId === 'orders') loadOrders();
     if (tabId === 'dues') loadDues();
+    // Entering the billing tab is a fresh sale by default; drop any carried-over
+    // prior-paid amount. prefillDueSlipsPayment() sets it again after switching.
+    if (tabId === 'billing') { billPriorPaid = 0; recalcBillTotal(); }
 }
 
 // ----------------- SYNCHRONIZE CACHES -----------------
@@ -764,20 +776,32 @@ function recalcBillTotal() {
     
     let paidAmt = parseFloat(document.getElementById('billPaidAmount').value) || 0;
     const fullPaidChecked = document.getElementById('billFullPaid').checked;
-    
+
     if (fullPaidChecked) {
-        paidAmt = Math.max(0, payable - preCredit);
+        // "Full Paid" means clear the balance: the new payment only needs to
+        // cover whatever is still outstanding after prior payments and credit.
+        paidAmt = Math.max(0, payable - preCredit - billPriorPaid);
         document.getElementById('billPaidAmount').value = paidAmt;
     }
-    
-    const totalPayments = paidAmt + preCredit;
+
+    // billPriorPaid is what the customer already paid on this invoice (0 for a
+    // fresh bill); the server re-adds it, so it counts toward clearing the due.
+    const totalPayments = paidAmt + preCredit + billPriorPaid;
     const dueAmt = Math.max(0, payable - totalPayments);
-    
+
     // Update math fields
     document.getElementById('billSubtotal').innerText = `Rs. ${subtotal.toFixed(2)}`;
     document.getElementById('billDiscountAmount').innerText = `Rs. ${discountVal.toFixed(2)}`;
     document.getElementById('billPayable').innerText = `Rs. ${payable.toFixed(2)}`;
     document.getElementById('billDueAmt').innerText = `Rs. ${dueAmt.toFixed(2)}`;
+
+    // Surface the previously-collected amount only when repaying a due, so the
+    // operator can see why the payable and the due differ.
+    const priorRow = document.getElementById('billPriorPaidRow');
+    if (priorRow) {
+        priorRow.style.display = billPriorPaid > 0 ? '' : 'none';
+        document.getElementById('billPriorPaidAmt').innerText = `Rs. ${billPriorPaid.toFixed(2)}`;
+    }
 }
 
 // Autocomplete filter: Customers
@@ -935,6 +959,7 @@ async function submitBilling(event) {
             `;
             document.getElementById('checkoutWalletBadge').style.display = 'none';
             document.getElementById('checkoutWalletBal').innerText = 'Rs. 0.00';
+            billPriorPaid = 0;
             recalcBillTotal();
             
             // Show the printable receipt built from the checkout result plus
@@ -1370,43 +1395,60 @@ function filterCatalog(query) {
 // ----------------- DUE BILLS TAB -----------------
 
 async function loadDues() {
-    const container = document.getElementById('dueSlipsContainer');
     try {
         const res = await fetch('/api/dues');
         const data = await res.json();
-        
         if (data.status === 'success') {
-            document.getElementById('dueSlipsCount').innerText = data.dues.length;
-            container.innerHTML = '';
-            
-            if (data.dues.length === 0) {
-                container.innerHTML = '<p class="placeholder-text">No pending outstanding invoices!</p>';
-                return;
-            }
-            
-            data.dues.forEach(due => {
-                const div = document.createElement('div');
-                div.className = 'due-invoice-slip-card';
-                div.innerHTML = `
-                    <div class="due-card-header">
-                        <span>Invoice: ${due.invoice_id}${due.date ? ' &middot; ' + due.date : ''}</span>
-                        <span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>
-                    </div>
-                    <div class="due-card-client">
-                        Customer: <strong>${due.name}</strong> (${due.contact})
-                    </div>
-                    <div class="due-card-items">
-                        Outfits: ${due.models.join(', ')}
-                        <br>Total bill: Rs. ${due.payable.toFixed(2)} | Paid: Rs. ${due.paid.toFixed(2)}
-                    </div>
-                    <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Remaining Due</button>
-                `;
-                container.appendChild(div);
-            });
+            duesCache = data.dues;
+            document.getElementById('dueSlipsCount').innerText = duesCache.length;
+            renderDues();
         }
     } catch (e) {
         console.error(e);
     }
+}
+
+// Render the cached dues list honouring the sort filter. The backend returns
+// them oldest first (by invoice time); "Newest bills first" is the default so
+// the most recent outstanding bills float to the top.
+function renderDues() {
+    const container = document.getElementById('dueSlipsContainer');
+    if (!container) return;
+
+    if (!duesCache.length) {
+        container.innerHTML = '<p class="placeholder-text">No pending outstanding invoices!</p>';
+        return;
+    }
+
+    const order = (document.getElementById('dueSortOrder') || {}).value || 'newest';
+    // Compare by timestamp; fall back to invoice id so entries with identical
+    // dates still keep a stable, sensible order.
+    const sorted = duesCache.slice().sort((a, b) => {
+        const cmp = (a.date || '').localeCompare(b.date || '')
+            || (a.invoice_id || '').localeCompare(b.invoice_id || '');
+        return order === 'newest' ? -cmp : cmp;
+    });
+
+    container.innerHTML = '';
+    sorted.forEach(due => {
+        const div = document.createElement('div');
+        div.className = 'due-invoice-slip-card';
+        div.innerHTML = `
+            <div class="due-card-header">
+                <span>Invoice: ${due.invoice_id}${due.date ? ' &middot; ' + due.date : ''}</span>
+                <span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>
+            </div>
+            <div class="due-card-client">
+                Customer: <strong>${due.name}</strong> (${due.contact})
+            </div>
+            <div class="due-card-items">
+                Outfits: ${due.models.join(', ')}
+                <br>Total bill: Rs. ${due.payable.toFixed(2)} | Paid: Rs. ${due.paid.toFixed(2)}
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Remaining Due</button>
+        `;
+        container.appendChild(div);
+    });
 }
 
 function prefillDueSlipsPayment(invoiceId) {
@@ -1459,11 +1501,14 @@ function prefillDueSlipsPayment(invoiceId) {
                     document.getElementById('billDiscount').value = due.discount;
                 }
                 
-                // set paid amount to remaining due
-                document.getElementById('billPaidAmount').value = due.due;
-                document.getElementById('billFullPaid').checked = true;
-                document.getElementById('billPaidAmount').disabled = true;
-                
+                // Carry the amount already collected so the form shows the true
+                // remaining due (not zero). The operator enters the fresh payment
+                // in the Immediate Payment field, or ticks Full Paid to clear it.
+                billPriorPaid = due.paid;
+                document.getElementById('billPaidAmount').value = '';
+                document.getElementById('billFullPaid').checked = false;
+                document.getElementById('billPaidAmount').disabled = false;
+
                 recalcBillTotal();
             }
         });

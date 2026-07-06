@@ -453,6 +453,7 @@
                                         <div class="math-row"><span>Items Subtotal:</span> <span id="billSubtotal">Rs. 0.00</span></div>
                                         <div class="math-row"><span>Discount Amount:</span> <span id="billDiscountAmount">Rs. 0.00</span></div>
                                         <div class="math-row"><span>Adjusted Payable:</span> <strong id="billPayable">Rs. 0.00</strong></div>
+                                        <div class="math-row" id="billPriorPaidRow" style="display: none;"><span>Previously Paid:</span> <span id="billPriorPaidAmt">Rs. 0.00</span></div>
                                         <div class="math-row highlight"><span>Remaining Due Balance:</span> <strong id="billDueAmt">Rs. 0.00</strong></div>
                                     </div>
                                 </div>
@@ -567,7 +568,14 @@
                     <div class="dashboard-card">
                         <div class="card-header">
                             <h2>Pending Due Invoices</h2>
-                            <p>Outstanding bills sorted oldest first — settle each one with its Pay Remaining Due shortcut.</p>
+                            <p>Outstanding bills — settle each one with its Pay Remaining Due shortcut.</p>
+                        </div>
+                        <div class="dues-toolbar">
+                            <label for="dueSortOrder">Show:</label>
+                            <select id="dueSortOrder" onchange="renderDues()">
+                                <option value="newest">Newest bills first</option>
+                                <option value="oldest">Oldest bills first</option>
+                            </select>
                         </div>
                         <div id="dueSlipsContainer" class="dues-tab-body">
                             <!-- Dynamic pending invoice logs -->
