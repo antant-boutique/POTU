@@ -2090,7 +2090,18 @@ input[type="number"]:focus {
 
 .thermal-receipt .tr-items { width: 100%; border-collapse: collapse; margin: 6px 0; }
 .thermal-receipt .tr-items th,
-.thermal-receipt .tr-items td { text-align: left; padding: 4px 2px; vertical-align: top; border-bottom: 1px dotted #bbb; }
+.thermal-receipt .tr-items td {
+    text-align: left;
+    padding: 4px 2px;
+    vertical-align: top;
+    border-bottom: 1px dotted #bbb;
+    /* Without this the app's dark-theme th/td rules (light text meant for a
+       dark background) leak in here, making header labels and item numbers
+       nearly invisible — or fully invisible in the exported PDF — against
+       this receipt's white background. */
+    color: #000;
+    background: none;
+}
 .thermal-receipt .tr-items th { border-bottom: 1px solid #000; }
 .thermal-receipt .rt { text-align: right; white-space: nowrap; }
 .thermal-receipt .tr-code { font-size: 10px; color: #555; }

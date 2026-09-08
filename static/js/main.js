@@ -12,7 +12,7 @@ let inventoryCache = {
 let customersCache = [];
 
 // Amount already collected on the invoice currently loaded in the billing form.
-// Non-zero only when a due bill is opened via "Pay Remaining Due"; the backend
+// Non-zero only when a due bill is opened via "Pay Due"; the backend
 // adds this to the new payment, so the form must subtract it to show the real
 // outstanding balance instead of zero.
 let billPriorPaid = 0;
@@ -1452,7 +1452,7 @@ function renderDues() {
                 <br>Total bill: Rs. ${due.payable.toFixed(2)}${due.discount > 0 ? ` (discount applied: Rs. ${due.discount.toFixed(2)})` : ''} | Paid: Rs. ${due.paid.toFixed(2)}
             </div>
             <div class="due-card-actions">
-                <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Remaining Due</button>
+                <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Due</button>
                 <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Share</button>
             </div>
         `;
