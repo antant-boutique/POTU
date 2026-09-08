@@ -981,8 +981,9 @@ async function submitBilling(event) {
     }
 }
 
-// Render a real, printable thermal receipt from the checkout result.
-function openInvoiceModal(bill) {
+// Build the printable thermal-receipt markup shared by the on-screen invoice
+// modal and the PDF generated for sharing a due invoice.
+function buildReceiptHTML(bill) {
     const money = v => 'Rs. ' + Number(v || 0).toFixed(0);
     const rows = (bill.items || []).map(it => `
         <tr>
@@ -992,13 +993,13 @@ function openInvoiceModal(bill) {
             <td class="rt">${Number(it.amount || 0).toFixed(0)}</td>
         </tr>`).join('');
 
-    document.getElementById('invoiceViewArea').innerHTML = `
+    return `
         <div class="thermal-receipt" id="thermalReceipt">
             <div class="tr-head">
                 <h3>ANTANT BOUTIQUE</h3>
                 <p class="tr-tag">fits you inside</p>
                 <p>Invoice: <strong>${bill.invoice_id || ''}</strong></p>
-                <p>${new Date().toLocaleString()}</p>
+                <p>${bill.date || new Date().toLocaleString()}</p>
                 ${bill.customer ? `<p>${bill.customer}${bill.phone ? ' &middot; ' + bill.phone : ''}</p>` : ''}
             </div>
             <table class="tr-items">
@@ -1015,6 +1016,11 @@ function openInvoiceModal(bill) {
             <div class="tr-foot"><p>Thank you for shopping with us!</p></div>
         </div>
     `;
+}
+
+// Render a real, printable thermal receipt from the checkout result.
+function openInvoiceModal(bill) {
+    document.getElementById('invoiceViewArea').innerHTML = buildReceiptHTML(bill);
     document.getElementById('invoiceModal').classList.add('active');
 }
 
@@ -1443,9 +1449,12 @@ function renderDues() {
             </div>
             <div class="due-card-items">
                 Outfits: ${due.models.join(', ')}
-                <br>Total bill: Rs. ${due.payable.toFixed(2)} | Paid: Rs. ${due.paid.toFixed(2)}
+                <br>Total bill: Rs. ${due.payable.toFixed(2)}${due.discount > 0 ? ` (discount applied: Rs. ${due.discount.toFixed(2)})` : ''} | Paid: Rs. ${due.paid.toFixed(2)}
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Remaining Due</button>
+            <div class="due-card-actions">
+                <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Remaining Due</button>
+                <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Share</button>
+            </div>
         `;
         container.appendChild(div);
     });
@@ -1493,12 +1502,14 @@ function prefillDueSlipsPayment(invoiceId) {
                 
                 document.getElementById('billAccessories').value = due.accessories;
                 
-                // setup discount checks
+                // setup discount checks — due.discount is the amount actually
+                // discounted, but the field takes a percentage, so convert back.
                 if (due.discount > 0) {
                     const chk = document.querySelector('input[name="discount"]');
                     chk.checked = true;
                     document.getElementById('billDiscount').disabled = false;
-                    document.getElementById('billDiscount').value = due.discount;
+                    const pct = due.subtotal > 0 ? Math.round(due.discount / due.subtotal * 100) : 0;
+                    document.getElementById('billDiscount').value = pct;
                 }
                 
                 // Carry the amount already collected so the form shows the true
@@ -1512,6 +1523,80 @@ function prefillDueSlipsPayment(invoiceId) {
                 recalcBillTotal();
             }
         });
+}
+
+// Render a due invoice as a PDF and hand it to the OS share sheet (WhatsApp,
+// email, etc. on mobile) via the Web Share API; falls back to a plain
+// download where file sharing isn't supported (most desktop browsers).
+async function shareDueInvoice(invoiceId) {
+    const due = duesCache.find(d => d.invoice_id === invoiceId);
+    if (!due) return;
+
+    const items = due.models.map((model, i) => {
+        const p = inventoryCache.products.find(p => p.code === model);
+        const rate = p ? p.price : 0;
+        const qty = Number(due.quantities[i] || 0);
+        return { name: p ? p.name : model, code: model, qty, rate, amount: rate * qty };
+    });
+    if (Number(due.accessories) > 0) {
+        items.push({ name: 'Accessories', code: 'OWA-PolB', qty: 1, rate: due.accessories, amount: due.accessories });
+    }
+
+    const bill = {
+        invoice_id: due.invoice_id,
+        date: due.date,
+        customer: due.name,
+        phone: due.contact,
+        items,
+        subtotal: due.subtotal,
+        discount: due.discount,
+        total: due.payable,
+        paid: due.paid,
+        due: due.due
+    };
+
+    // Render off-screen (not display:none — html2canvas can't rasterize that)
+    // so the layout is real without disturbing the visible UI.
+    const holder = document.createElement('div');
+    holder.style.cssText = 'position:fixed; left:-9999px; top:0; width:300px; background:#fff;';
+    holder.innerHTML = buildReceiptHTML(bill);
+    document.body.appendChild(holder);
+
+    try {
+        const canvas = await html2canvas(holder, { scale: 2, backgroundColor: '#ffffff' });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdfWidth = 80; // mm — standard thermal receipt width
+        const pdfHeight = pdfWidth * canvas.height / canvas.width;
+        const pdf = new jsPDF({ unit: 'mm', format: [pdfWidth, pdfHeight] });
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        const blob = pdf.output('blob');
+        const file = new File([blob], `Invoice-${due.invoice_id}.pdf`, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                files: [file],
+                title: `Invoice ${due.invoice_id}`,
+                text: `Antant Boutique invoice ${due.invoice_id} — due Rs. ${due.due.toFixed(2)}`
+            });
+        } else {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Invoice-${due.invoice_id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error(e);
+            alert('Could not generate the invoice PDF.');
+        }
+    } finally {
+        holder.remove();
+    }
 }
 
 // ----------------- SEARCH & INFO LOOKUP -----------------

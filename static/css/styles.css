@@ -1287,6 +1287,15 @@ input[type="number"]:focus {
     color: var(--text-muted);
 }
 
+.due-card-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.due-card-actions .btn {
+    flex: 1;
+}
+
 /* Splash/Placeholders info screen styling */
 .info-splash {
     text-align: center;
@@ -1584,6 +1593,18 @@ input[type="number"]:focus {
    Phones (≤768px): compact density on top of the taskbar layout above
    -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+    /* iOS Safari auto-zooms into any focused field with a computed font-size
+       under 16px, which yanks the whole viewport around on every tap into a
+       form. Bumping fields to 16px here (barely perceptible) stops that. */
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="password"],
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
     .content-header {
         padding: 0 15px;
         height: 50px;
@@ -1597,7 +1618,7 @@ input[type="number"]:focus {
     }
     
     .search-bar input {
-        font-size: 0.75rem;
+        font-size: 16px; /* keep at 16px so iOS Safari doesn't zoom on focus */
     }
     
     .wallet-quick-badge {
@@ -1701,7 +1722,7 @@ input[type="number"]:focus {
     
     .op-row input {
         width: 100% !important;
-        font-size: 0.72rem;
+        font-size: 16px; /* iOS Safari zooms in on focus below 16px */
         padding: 4px 6px;
         text-align: left !important;
     }
@@ -1780,7 +1801,7 @@ input[type="number"]:focus {
     
     .customer-lookup-area input {
         padding: 5px 8px;
-        font-size: 0.78rem;
+        font-size: 16px; /* iOS Safari zooms in on focus below 16px */
     }
     
     /* Cart Table & tables mobile compact styling */
@@ -2015,7 +2036,7 @@ input[type="number"]:focus {
     background: #161616;
     color: var(--text-main);
     border: 1px solid var(--border-light);
-    font-size: 13px;
+    font-size: 16px; /* iOS Safari zooms in on focus below 16px */
     cursor: pointer;
 }
 
