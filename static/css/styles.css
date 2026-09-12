@@ -637,6 +637,14 @@ input[type="number"]:focus {
     margin-bottom: 2px;
 }
 
+.greeting-preview {
+    font-size: 0.75rem;
+    color: var(--text-sub);
+    font-style: italic;
+    margin-top: 4px;
+    display: block;
+}
+
 .flex-chk {
     margin-top: 6px;
 }

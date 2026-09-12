@@ -444,13 +444,14 @@
                                                 </label>
                                             </div>
                                         </div>
-                                        <div class="form-group flex-2">
-                                            <label>Occasion Greeting Text (optional)</label>
-                                            <input type="text" id="billGreetingText" placeholder="e.g. Happy Diwali from Antant Boutique!">
-                                        </div>
-                                        <div class="form-group flex-2">
-                                            <label>Occasion Greeting Image (optional)</label>
-                                            <input type="file" id="billGreetingImage" accept="image/*">
+                                        <div class="form-group flex-2 check-input">
+                                            <label class="custom-checkbox">
+                                                <input type="checkbox" name="includeGreeting" value="on" id="billIncludeGreeting">
+                                                <span class="checkmark"></span>
+                                                Include occasion greeting
+                                            </label>
+                                            <button type="button" class="btn btn-secondary btn-sm" onclick="openGreetingSettingsModal()"><i class="fa-solid fa-pen"></i> Edit greeting</button>
+                                            <span class="greeting-preview" id="billGreetingPreview"></span>
                                         </div>
                                     </div>
 
@@ -630,6 +631,36 @@
                 <div class="thermal-bill-container" id="invoiceViewArea">
                     <!-- Thermal bill layout rendering -->
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Occasion Greeting Settings Modal (one shared text + image for all bills) -->
+    <div class="modal-overlay" id="greetingSettingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Occasion Greeting</h2>
+                <div class="modal-actions">
+                    <button class="btn btn-danger" onclick="closeGreetingSettingsModal()"><i class="fa-solid fa-xmark"></i> Close</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <p>One shared message shown below any bill where "Include occasion greeting" is ticked — update it here whenever the occasion changes.</p>
+                <div class="form-group">
+                    <label>Greeting Text</label>
+                    <input type="text" id="greetingSettingsText" placeholder="e.g. Happy Diwali from Antant Boutique!">
+                </div>
+                <div class="form-group">
+                    <label>Greeting Image</label>
+                    <div id="greetingSettingsImagePreviewWrap" style="display:none; margin-bottom:8px;">
+                        <img id="greetingSettingsImagePreview" src="" alt="Current greeting image" style="max-width:200px; max-height:120px; border-radius:8px;">
+                        <button type="button" class="btn btn-icon btn-danger btn-sm" title="Remove image" onclick="clearGreetingImage()"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <input type="file" id="greetingSettingsImageInput" accept="image/*">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveGreetingSettings()"><i class="fa-solid fa-check"></i> Save Greeting</button>
             </div>
         </div>
     </div>

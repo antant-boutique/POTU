@@ -20,6 +20,14 @@ let billPriorPaid = 0;
 // In-memory copy of the dues list so the sort filter can re-render without refetching.
 let duesCache = [];
 
+// The shop's single shared occasion greeting (one text + image for every
+// bill, not per-invoice) — cached client-side after loadGreetingSettings().
+let greetingCache = { text: '', image: '' };
+// Set true only while the operator is actively removing the greeting image
+// in the settings modal — distinguishes "leave the image alone" (no new file
+// picked) from "clear it" when saveGreetingSettings() runs.
+let greetingImagePendingClear = false;
+
 // Category hints matching old bot prodtype options
 const categorySuggestions = [
     "saree", "suit", "kurti", "blouse", "dress", "shawl", "fabric", "dupatta"
@@ -103,6 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCustomersCache();
     loadOrders();
     loadDues();
+    loadGreetingSettings();
 
     // Auto-calculating hooks
     recalcDesignTotal();
@@ -907,6 +916,102 @@ async function handleCustomerPhoneInput(phone) {
 }
 
 
+// ----------------- OCCASION GREETING SETTINGS -----------------
+// One shared text + image shown below any bill where the operator ticks
+// "Include occasion greeting" — updated here, not per-bill.
+
+async function loadGreetingSettings() {
+    try {
+        const res = await apiFetch('/api/settings/greeting');
+        const data = await res.json();
+        if (data.status === 'success') {
+            greetingCache = { text: data.text || '', image: data.image || '' };
+            updateGreetingPreview();
+        }
+    } catch (e) {
+        console.error("Failed to load greeting settings:", e);
+    }
+}
+
+function updateGreetingPreview() {
+    const el = document.getElementById('billGreetingPreview');
+    if (!el) return;
+    if (!greetingCache.text && !greetingCache.image) {
+        el.textContent = '(none set)';
+    } else {
+        el.textContent = greetingCache.text
+            ? `"${greetingCache.text}"${greetingCache.image ? ' + image' : ''}`
+            : 'image only';
+    }
+}
+
+function openGreetingSettingsModal() {
+    document.getElementById('greetingSettingsText').value = greetingCache.text;
+    document.getElementById('greetingSettingsImageInput').value = '';
+    greetingImagePendingClear = false;
+
+    const preview = document.getElementById('greetingSettingsImagePreview');
+    const wrap = document.getElementById('greetingSettingsImagePreviewWrap');
+    if (greetingCache.image) {
+        preview.src = greetingCache.image;
+        wrap.style.display = 'block';
+    } else {
+        wrap.style.display = 'none';
+    }
+
+    document.getElementById('greetingSettingsModal').classList.add('active');
+}
+
+function closeGreetingSettingsModal() {
+    document.getElementById('greetingSettingsModal').classList.remove('active');
+}
+
+function clearGreetingImage() {
+    greetingImagePendingClear = true;
+    document.getElementById('greetingSettingsImagePreviewWrap').style.display = 'none';
+}
+
+async function saveGreetingSettings() {
+    const payload = {
+        text: document.getElementById('greetingSettingsText').value.trim()
+    };
+
+    const imgInput = document.getElementById('greetingSettingsImageInput');
+    if (imgInput.files && imgInput.files[0]) {
+        try {
+            payload.image = await getBase64(imgInput.files[0]);
+        } catch (err) {
+            console.error("Error reading greeting image file:", err);
+            alert("Could not read that image file.");
+            return;
+        }
+    } else if (greetingImagePendingClear) {
+        payload.image = '';
+    }
+    // Otherwise omit `image` entirely so the existing one is left untouched.
+
+    showOverlay('Saving greeting…');
+    try {
+        const response = await apiFetch('/api/settings/greeting', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+            greetingCache = { text: result.text || '', image: result.image || '' };
+            updateGreetingPreview();
+            closeGreetingSettingsModal();
+        } else {
+            alert("Could not save greeting: " + (result.message || 'Unknown error.'));
+        }
+    } catch (e) {
+        alert("Server failed to respond. Please try again.");
+    } finally {
+        hideOverlay();
+    }
+}
+
 async function submitBilling(event) {
     event.preventDefault();
     const form = event.target;
@@ -925,26 +1030,14 @@ async function submitBilling(event) {
         upiQR: form.querySelector('input[name="upiQR"]').checked ? 'on' : 'off',
         cash: form.querySelector('input[name="cash"]').checked ? 'on' : 'off',
         printInvoice: document.getElementById('billPrintInvoice').checked ? 'on' : 'off',
+        includeGreeting: document.getElementById('billIncludeGreeting').checked ? 'on' : 'off',
         INVCno: document.getElementById('billInvcNo').value
     };
-    
+
     form.querySelectorAll('#billCartTable tbody tr').forEach(row => {
         data['models[]'].push(row.querySelector('input[name="models[]"]').value);
         data['quantities[]'].push(row.querySelector('input[name="quantities[]"]').value);
     });
-
-    // Optional occasion greeting (e.g. a festival image + message), printed
-    // below the bill on both the screen/PDF receipt and the physical print.
-    data.greetingText = document.getElementById('billGreetingText').value.trim();
-    const greetingImgInput = document.getElementById('billGreetingImage');
-    data.greetingImage = '';
-    if (greetingImgInput && greetingImgInput.files && greetingImgInput.files[0]) {
-        try {
-            data.greetingImage = await getBase64(greetingImgInput.files[0]);
-        } catch (err) {
-            console.error("Error reading greeting image file:", err);
-        }
-    }
 
     showOverlay('Processing invoice…');
     try {
@@ -976,10 +1069,14 @@ async function submitBilling(event) {
             recalcBillTotal();
             
             // Show the printable receipt built from the checkout result plus
-            // the customer details captured before the form was reset.
+            // the customer details captured before the form was reset. The
+            // greeting itself isn't round-tripped through the backend — it's
+            // a shared setting the frontend already has cached.
             openInvoiceModal(Object.assign({}, result, {
                 customer: data.customerName,
-                phone: data.customerContact
+                phone: data.customerContact,
+                greeting_text: result.include_greeting ? greetingCache.text : '',
+                greeting_image: result.include_greeting ? greetingCache.image : ''
             }));
             syncInventoryCache();
             loadDashboard();
