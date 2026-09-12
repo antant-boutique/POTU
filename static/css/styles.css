@@ -1102,13 +1102,20 @@ input[type="number"]:focus {
     flex-grow: 1;
 }
 
+.pcard-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    padding-top: 8px;
+}
+
 .pcard-price {
     font-family: var(--font-heading);
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--accent-green);
-    border-top: 1px solid rgba(255, 255, 255, 0.03);
-    padding-top: 8px;
 }
 
 /* Modals & Overlays */
@@ -2112,6 +2119,16 @@ input[type="number"]:focus {
 .thermal-receipt .tr-due { font-weight: 700; color: #c00; }
 
 .thermal-receipt .tr-foot { text-align: center; border-top: 1px dashed #000; margin-top: 8px; padding-top: 8px; font-size: 12px; }
+
+.thermal-receipt .tr-greeting {
+    text-align: center;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed #000;
+    color: #000;
+}
+.thermal-receipt .tr-greeting img { max-width: 100%; height: auto; margin-bottom: 6px; }
+.thermal-receipt .tr-greeting p { margin: 0; font-size: 13px; font-style: italic; }
 
 @media print {
     body * { visibility: hidden; }

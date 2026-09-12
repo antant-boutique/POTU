@@ -932,7 +932,20 @@ async function submitBilling(event) {
         data['models[]'].push(row.querySelector('input[name="models[]"]').value);
         data['quantities[]'].push(row.querySelector('input[name="quantities[]"]').value);
     });
-    
+
+    // Optional occasion greeting (e.g. a festival image + message), printed
+    // below the bill on both the screen/PDF receipt and the physical print.
+    data.greetingText = document.getElementById('billGreetingText').value.trim();
+    const greetingImgInput = document.getElementById('billGreetingImage');
+    data.greetingImage = '';
+    if (greetingImgInput && greetingImgInput.files && greetingImgInput.files[0]) {
+        try {
+            data.greetingImage = await getBase64(greetingImgInput.files[0]);
+        } catch (err) {
+            console.error("Error reading greeting image file:", err);
+        }
+    }
+
     showOverlay('Processing invoice…');
     try {
         const response = await apiFetch('/api/billing/invoice', {
@@ -1014,6 +1027,11 @@ function buildReceiptHTML(bill) {
                 <div class="${Number(bill.due) > 0 ? 'tr-due' : ''}"><span>Due</span><span>${money(bill.due)}</span></div>
             </div>
             <div class="tr-foot"><p>Thank you for shopping with us!</p></div>
+            ${(bill.greeting_image || bill.greeting_text) ? `
+            <div class="tr-greeting">
+                ${bill.greeting_image ? `<img src="${bill.greeting_image}" alt="">` : ''}
+                ${bill.greeting_text ? `<p>${bill.greeting_text}</p>` : ''}
+            </div>` : ''}
         </div>
     `;
 }
@@ -1338,7 +1356,10 @@ function renderCatalogGrid() {
             </div>
             <div class="pcard-category">${p.category}</div>
             <div class="pcard-desc">${p.name || 'Handcrafted Design (' + p.mat_code + ')'}</div>
-            <div class="pcard-price">Rs. ${p.price.toFixed(2)}</div>
+            <div class="pcard-price-row">
+                <div class="pcard-price">Rs. ${p.price.toFixed(2)}</div>
+                <button type="button" class="btn btn-icon btn-secondary btn-sm" title="Edit price" onclick="editProductPrice('${p.code}', ${p.price})"><i class="fa-solid fa-pen"></i></button>
+            </div>
             <div class="pcard-stock-controls">
                 <input type="number" min="1" value="1" title="Pieces to add">
                 <button type="button" class="btn btn-secondary btn-sm" onclick="adjustCatalogStock('${p.code}', this)"><i class="fa-solid fa-plus"></i> Add Stock</button>
@@ -1373,6 +1394,39 @@ async function adjustCatalogStock(code, btn) {
             if (q) filterCatalog(q);
         } else {
             alert("Could not add stock: " + (result.message || 'Unknown error.'));
+        }
+    } catch (e) {
+        alert("Server failed to respond. Please try again.");
+    } finally {
+        hideOverlay();
+    }
+}
+
+async function editProductPrice(code, currentPrice) {
+    const input = prompt(`New price for ${code} (INR):`, currentPrice.toFixed(2));
+    if (input === null) return;
+    const price = parseFloat(input);
+    if (isNaN(price) || price < 0) {
+        alert("Enter a valid non-negative price.");
+        return;
+    }
+
+    showOverlay(`Updating price for ${code}…`);
+    try {
+        const response = await apiFetch('/api/products/update-price', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model_no: code, price: price})
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            await syncInventoryCache();
+            renderCatalogGrid();
+            const q = document.getElementById('catalogSearchInput').value;
+            if (q) filterCatalog(q);
+        } else {
+            alert("Could not update price: " + (result.message || 'Unknown error.'));
         }
     } catch (e) {
         alert("Server failed to respond. Please try again.");
