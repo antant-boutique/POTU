@@ -1083,9 +1083,16 @@ async function submitBilling(event) {
             loadDues();
         } else {
             alert("Checkout failed: " + (result.message || 'Unknown error.'));
+            // A failure past the stock-adjustment step (see process_billing)
+            // leaves real stock already decremented in Supabase — resync so
+            // the Catalog/autocomplete numbers reflect that immediately
+            // instead of showing stale pre-failure quantities until some
+            // other action happens to refresh the cache.
+            syncInventoryCache();
         }
     } catch (e) {
         alert("Billing transaction failed. Please try again.");
+        syncInventoryCache();
     } finally {
         hideOverlay();
     }
