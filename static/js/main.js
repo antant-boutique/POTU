@@ -813,6 +813,26 @@ function recalcBillTotal() {
     }
 }
 
+// Reflects a customer's wallet balance in the Billing form's badge. Shown
+// whenever it's non-zero, including negative (money the customer owes back
+// after an over-large manual deduction) — collapsing a negative balance to
+// "Rs. 0.00" would hide real debt from staff, and from recalcBillTotal()
+// above, which parses this same displayed text as the credit to apply.
+function updateWalletBadge(balance) {
+    const bal = Number(balance) || 0;
+    const badge = document.getElementById('checkoutWalletBadge');
+    const label = document.getElementById('checkoutWalletBal');
+    if (Math.abs(bal) > 0.004) {
+        label.innerText = `Rs. ${bal.toFixed(2)}`;
+        badge.style.display = 'block';
+        badge.classList.toggle('wallet-negative', bal < 0);
+    } else {
+        badge.style.display = 'none';
+        badge.classList.remove('wallet-negative');
+        label.innerText = 'Rs. 0.00';
+    }
+}
+
 // Autocomplete filter: Customers
 function showCustomerSuggestions(input, mode) {
     const list = input.closest('.autocomplete-td').querySelector('.autocomplete-suggestions');
@@ -846,13 +866,7 @@ function filterCustomerSuggestions(input, mode) {
                     document.getElementById('billContact').value = item.phone;
                     document.getElementById('billName').value = item.name;
                     document.getElementById('billAddress').value = item.address || '';
-                    if (item.wallet_balance > 0) {
-                        document.getElementById('checkoutWalletBal').innerText = `Rs. ${item.wallet_balance.toFixed(2)}`;
-                        document.getElementById('checkoutWalletBadge').style.display = 'block';
-                    } else {
-                        document.getElementById('checkoutWalletBadge').style.display = 'none';
-                        document.getElementById('checkoutWalletBal').innerText = 'Rs. 0.00';
-                    }
+                    updateWalletBadge(item.wallet_balance);
                     recalcBillTotal();
                 } else if (mode === 'orders') {
                     document.getElementById('orderContact').value = item.phone;
@@ -879,13 +893,7 @@ async function handleCustomerPhoneInput(phone) {
     if (matched) {
         document.getElementById('billName').value = matched.name;
         document.getElementById('billAddress').value = matched.address || '';
-        if (matched.wallet_balance > 0) {
-            document.getElementById('checkoutWalletBal').innerText = `Rs. ${matched.wallet_balance.toFixed(2)}`;
-            document.getElementById('checkoutWalletBadge').style.display = 'block';
-        } else {
-            document.getElementById('checkoutWalletBadge').style.display = 'none';
-            document.getElementById('checkoutWalletBal').innerText = 'Rs. 0.00';
-        }
+        updateWalletBadge(matched.wallet_balance);
         recalcBillTotal();
         return;
     }
@@ -899,19 +907,53 @@ async function handleCustomerPhoneInput(phone) {
                 document.getElementById('billName').value = data.name;
                 document.getElementById('billAddress').value = data.address;
                 
-                // Show wallet adjustments badge
-                if (data.wallet_balance > 0) {
-                    document.getElementById('checkoutWalletBal').innerText = `Rs. ${data.wallet_balance.toFixed(2)}`;
-                    document.getElementById('checkoutWalletBadge').style.display = 'block';
-                } else {
-                    document.getElementById('checkoutWalletBadge').style.display = 'none';
-                    document.getElementById('checkoutWalletBal').innerText = 'Rs. 0.00';
-                }
+                updateWalletBadge(data.wallet_balance);
                 recalcBillTotal();
             }
         } catch (e) {
             console.error(e);
         }
+    }
+}
+
+// Manually adjust a customer's wallet credit — for refunds or goodwill
+// credit, independent of an actual checkout. Uses whichever contact is
+// currently entered in the Billing form's phone field.
+async function promptAddWalletCredit() {
+    const phone = document.getElementById('billContact').value.trim();
+    if (!phone) {
+        alert("Enter the customer's phone number first.");
+        return;
+    }
+    const name = document.getElementById('billName').value.trim();
+
+    const input = prompt(`Add wallet credit for ${name || phone} (INR). Enter a negative number to deduct:`, '');
+    if (input === null) return;
+    const amount = parseFloat(input);
+    if (isNaN(amount) || amount === 0) {
+        alert("Enter a non-zero amount.");
+        return;
+    }
+
+    showOverlay('Updating wallet…');
+    try {
+        const response = await apiFetch('/api/customers/add-credit', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ phone, amount, name })
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+            updateWalletBadge(result.wallet_balance);
+            recalcBillTotal();
+            loadCustomersCache();
+        } else {
+            alert("Could not update wallet: " + (result.message || 'Unknown error.'));
+        }
+    } catch (e) {
+        alert("Server failed to respond. Please try again.");
+    } finally {
+        hideOverlay();
     }
 }
 

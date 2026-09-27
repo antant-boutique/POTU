@@ -938,6 +938,21 @@ input[type="number"]:focus {
     text-align: center;
 }
 
+/* A negative balance means the customer owes the store, not the other way
+   round — visually distinct from ordinary credit so it can't be missed. */
+.wallet-adjustment-badge.wallet-negative {
+    background-color: rgba(225, 29, 72, 0.1);
+    border-color: rgba(225, 29, 72, 0.3);
+    color: var(--accent-red);
+}
+
+.wallet-credit-btn {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
 /* Custom Orders timelines & lists */
 .orders-split-grid {
     display: grid;
