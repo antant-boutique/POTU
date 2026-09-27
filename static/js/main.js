@@ -1551,49 +1551,129 @@ function filterCatalog(query) {
 
 // ----------------- DUE BILLS TAB -----------------
 
+// Which list the Due Bills tab currently shows — 'due' (outstanding) or
+// 'paid' (recently cleared, for sending payment-confirmation messages).
+let duesViewMode = 'due';
+
+async function fetchDuesView(mode) {
+    const res = await fetch(`/api/dues?status=${mode}`);
+    return res.json();
+}
+
 async function loadDues() {
+    // Always refreshes the nav badge with the true outstanding count,
+    // independent of whichever view the Due Bills tab currently shows.
     try {
-        const res = await fetch('/api/dues');
-        const data = await res.json();
+        const data = await fetchDuesView('due');
         if (data.status === 'success') {
-            duesCache = data.dues;
-            document.getElementById('dueSlipsCount').innerText = duesCache.length;
-            renderDues();
+            document.getElementById('dueSlipsCount').innerText = data.dues.length;
+            if (duesViewMode === 'due') {
+                duesCache = data.dues;
+                renderDues();
+            }
         }
     } catch (e) {
         console.error(e);
     }
+
+    // If the Fully Paid view is what's currently on screen, keep it fresh
+    // too — otherwise clearing a due elsewhere leaves it stale until the
+    // operator manually re-clicks the toggle.
+    if (duesViewMode === 'paid') {
+        try {
+            const data = await fetchDuesView('paid');
+            if (data.status === 'success') {
+                duesCache = data.dues;
+                renderDues();
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
 }
 
-// Render the cached dues list honouring the sort filter. The backend returns
-// them oldest first (by invoice time); "Newest bills first" is the default so
-// the most recent outstanding bills float to the top.
+async function switchDuesView(mode) {
+    duesViewMode = mode;
+    document.querySelectorAll('.dues-view-toggle .btn').forEach(b => b.classList.toggle('active', b.dataset.view === mode));
+    document.getElementById('duesTabTitle').innerText = mode === 'paid' ? 'Fully Paid Invoices' : 'Pending Due Invoices';
+    document.getElementById('duesTabSubtitle').innerText = mode === 'paid'
+        ? 'Recently cleared bills — send each customer a payment confirmation.'
+        : 'Outstanding bills — settle each one with its Pay Due shortcut.';
+
+    try {
+        const data = await fetchDuesView(mode);
+        if (data.status === 'success') {
+            duesCache = data.dues;
+            renderDues();
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Could not load bills. Please try again.');
+    }
+}
+
+// Client-side filter over the currently loaded view — matches name, phone,
+// or invoice number so a specific recent bill is easy to find in a long list.
+function filterDuesData(list, query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter(d =>
+        (d.name || '').toLowerCase().includes(q) ||
+        (d.contact || '').toLowerCase().includes(q) ||
+        (d.invoice_id || '').toLowerCase().includes(q)
+    );
+}
+
+// Render the cached dues list honouring the sort and search filters. The
+// backend returns outstanding bills oldest first; "Newest bills first" is
+// the default so the most recent ones float to the top.
 function renderDues() {
     const container = document.getElementById('dueSlipsContainer');
     if (!container) return;
 
     if (!duesCache.length) {
-        container.innerHTML = '<p class="placeholder-text">No pending outstanding invoices!</p>';
+        container.innerHTML = duesViewMode === 'paid'
+            ? '<p class="placeholder-text">No recently cleared bills.</p>'
+            : '<p class="placeholder-text">No pending outstanding invoices!</p>';
         return;
     }
 
     const order = (document.getElementById('dueSortOrder') || {}).value || 'newest';
-    // Compare by timestamp; fall back to invoice id so entries with identical
-    // dates still keep a stable, sensible order.
+    // In the Fully Paid view "newest" means most-recently-cleared, not most-
+    // recently-billed — an invoice from months ago can clear today. Falls
+    // back to the billing date for older rows that predate Cleared At.
+    const sortKey = d => (duesViewMode === 'paid' ? (d.cleared_at || d.date) : d.date) || '';
+    // Fall back to invoice id so entries with identical dates still keep a
+    // stable, sensible order.
     const sorted = duesCache.slice().sort((a, b) => {
-        const cmp = (a.date || '').localeCompare(b.date || '')
+        const cmp = sortKey(a).localeCompare(sortKey(b))
             || (a.invoice_id || '').localeCompare(b.invoice_id || '');
         return order === 'newest' ? -cmp : cmp;
     });
 
+    const query = (document.getElementById('duesSearchInput') || {}).value || '';
+    const filtered = filterDuesData(sorted, query);
+
+    if (!filtered.length) {
+        container.innerHTML = '<p class="placeholder-text">No bills match your search.</p>';
+        return;
+    }
+
     container.innerHTML = '';
-    sorted.forEach(due => {
+    filtered.forEach(due => {
         const div = document.createElement('div');
         div.className = 'due-invoice-slip-card';
+        const statusLine = duesViewMode === 'paid'
+            ? `<span class="due-card-cleared">Cleared${due.cleared_at ? ' &middot; ' + due.cleared_at : ''}</span>`
+            : `<span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>`;
+        const actions = duesViewMode === 'paid'
+            ? `<button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Send Clearance</button>`
+            : `<button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Due</button>
+                <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Share</button>`;
         div.innerHTML = `
             <div class="due-card-header">
                 <span>Invoice: ${due.invoice_id}${due.date ? ' &middot; ' + due.date : ''}</span>
-                <span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>
+                ${statusLine}
             </div>
             <div class="due-card-client">
                 Customer: <strong>${due.name}</strong> (${due.contact})
@@ -1603,8 +1683,7 @@ function renderDues() {
                 <br>Total bill: Rs. ${due.payable.toFixed(2)}${due.discount > 0 ? ` (discount applied: Rs. ${due.discount.toFixed(2)})` : ''} | Paid: Rs. ${due.paid.toFixed(2)}
             </div>
             <div class="due-card-actions">
-                <button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Due</button>
-                <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Share</button>
+                ${actions}
             </div>
         `;
         container.appendChild(div);

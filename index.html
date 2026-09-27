@@ -576,10 +576,15 @@
                 <div id="tab-dues" class="tab-panel">
                     <div class="dashboard-card">
                         <div class="card-header">
-                            <h2>Pending Due Invoices</h2>
-                            <p>Outstanding bills — settle each one with its Pay Remaining Due shortcut.</p>
+                            <h2 id="duesTabTitle">Pending Due Invoices</h2>
+                            <p id="duesTabSubtitle">Outstanding bills — settle each one with its Pay Due shortcut.</p>
+                        </div>
+                        <div class="dues-view-toggle">
+                            <button type="button" class="btn btn-secondary btn-sm active" data-view="due" onclick="switchDuesView('due')"><i class="fa-solid fa-hourglass-half"></i> Outstanding</button>
+                            <button type="button" class="btn btn-secondary btn-sm" data-view="paid" onclick="switchDuesView('paid')"><i class="fa-solid fa-check-double"></i> Fully Paid</button>
                         </div>
                         <div class="dues-toolbar">
+                            <input type="text" id="duesSearchInput" placeholder="Search by name, phone, or invoice no..." oninput="renderDues()">
                             <label for="dueSortOrder">Show:</label>
                             <select id="dueSortOrder" onchange="renderDues()">
                                 <option value="newest">Newest bills first</option>
