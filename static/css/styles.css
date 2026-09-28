@@ -837,6 +837,12 @@ input[type="number"]:focus {
     flex: 1 1 200px;
 }
 
+.customer-lookup-area .wallet-adjustment-badge,
+.customer-lookup-area .wallet-credit-btn {
+    flex-basis: 100%;
+    margin-bottom: 0;
+}
+
 .customer-lookup-area .flex-2 {
     flex: 2 1 300px;
 }

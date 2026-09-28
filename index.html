@@ -370,6 +370,11 @@
                                         <label>Address</label>
                                         <input type="text" name="customerAddress" id="billAddress">
                                     </div>
+
+                                    <div class="wallet-adjustment-badge" id="checkoutWalletBadge" style="display: none;">
+                                        Customer Wallet Credit: <strong id="checkoutWalletBal">Rs. 0.00</strong>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary btn-sm wallet-credit-btn" onclick="promptAddWalletCredit()"><i class="fa-solid fa-wallet"></i> Add Wallet Credit</button>
                                 </div>
 
                                 <div class="pos-cart-container">
@@ -456,10 +461,6 @@
                                     </div>
 
                                     <div class="checkout-math-pane">
-                                        <div class="wallet-adjustment-badge" id="checkoutWalletBadge" style="display: none;">
-                                            Customer Wallet Credit: <strong id="checkoutWalletBal">Rs. 0.00</strong>
-                                        </div>
-                                        <button type="button" class="btn btn-secondary btn-sm wallet-credit-btn" onclick="promptAddWalletCredit()"><i class="fa-solid fa-wallet"></i> Add Wallet Credit</button>
                                         <div class="math-row"><span>Items Subtotal:</span> <span id="billSubtotal">Rs. 0.00</span></div>
                                         <div class="math-row"><span>Discount Amount:</span> <span id="billDiscountAmount">Rs. 0.00</span></div>
                                         <div class="math-row"><span>Adjusted Payable:</span> <strong id="billPayable">Rs. 0.00</strong></div>
