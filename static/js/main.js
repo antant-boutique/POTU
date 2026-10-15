@@ -2,6 +2,13 @@
    Antant Boutique Webapp Core Interactions (main.js)
    ========================================================================== */
 
+// Base URL for customer-facing links (invoice.html, orderstatus.html) sent
+// over WhatsApp — the shop's own branded GitHub Pages URL, not onrender.com.
+// Those pages fetch their data from Render's JSON API directly; only the
+// visible link a customer taps uses this domain. Update if the Pages path
+// ever moves.
+const GITHUB_PAGES_BASE_URL = 'https://antant-boutique.github.io/POTU';
+
 // Client-side cache for autocomplete systems
 let inventoryCache = {
     materials: [],
@@ -1857,7 +1864,10 @@ function messageCustomerInvoice({ contact, name, invoice_id, due }) {
         alert(`This customer's phone number doesn't look like a valid 10-digit WhatsApp number (got "${contact || ''}").`);
         return;
     }
-    const link = `${RENDER_BACKEND_URL}/invoice/${invoice_id}`;
+    // Points at the GitHub Pages copy (invoice.html, fetches from Render's
+    // JSON API), not the Render-hosted page directly — a customer-facing
+    // link should show the shop's own branded URL, not onrender.com.
+    const link = `${GITHUB_PAGES_BASE_URL}/invoice.html?id=${encodeURIComponent(invoice_id)}`;
     const statusLine = Number(due) > 0
         ? `Amount due: Rs. ${Number(due).toFixed(2)}`
         : `Status: Fully paid ✅`;

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light only">
+    <title>Invoice | Antant Boutique</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light only;
+            --accent-glow: #e11d48;
+            --accent-green: #22c55e;
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+            --bg: #0c7787;
+            --card-bg: #fffefb;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 24px 16px 48px;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            min-height: 100vh;
+            color: var(--text-main);
+        }
+        .card {
+            max-width: 420px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 18px;
+            padding: 24px 20px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+        }
+        .shop-head { text-align: center; margin-bottom: 18px; }
+        .shop-head h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            margin: 0;
+            color: var(--accent-glow);
+            letter-spacing: 0.5px;
+        }
+        .shop-head p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub); font-style: italic; }
+        .meta { text-align: center; font-size: 0.85rem; color: var(--text-sub); margin-bottom: 16px; }
+        .meta strong { color: var(--text-main); }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 6px 2px; border-bottom: 1px dotted #d8d8d8; }
+        th { border-bottom: 1px solid var(--text-main); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .rt { text-align: right; white-space: nowrap; }
+        .item-code { font-size: 0.72rem; color: var(--text-sub); }
+        .totals { border-top: 1px dashed var(--text-main); margin-top: 10px; padding-top: 10px; }
+        .totals > div { display: flex; justify-content: space-between; margin: 3px 0; font-size: 0.88rem; }
+        .grand { font-weight: 700; font-size: 1.05rem; border-top: 1px solid var(--text-main); margin-top: 6px; padding-top: 6px; }
+        .due-row { font-weight: 700; color: var(--accent-glow); }
+        .greeting {
+            margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--text-main);
+            text-align: center;
+        }
+        .greeting img { max-width: 100%; border-radius: 10px; margin-bottom: 8px; }
+        .greeting p { margin: 0; font-style: italic; font-size: 0.9rem; }
+        .foot { text-align: center; margin-top: 18px; font-size: 0.8rem; color: var(--text-sub); }
+        .action-btn {
+            display: block; width: 100%; margin-top: 12px;
+            border: none; border-radius: 10px; padding: 13px;
+            font-size: 0.95rem; font-weight: 600; font-family: 'Inter', sans-serif;
+            cursor: pointer; text-align: center; text-decoration: none;
+        }
+        .pay-btn { background: var(--accent-green); color: #fff; }
+        .download-btn { background: var(--accent-glow); color: #fff; }
+        .action-btn:active { opacity: 0.85; }
+        .status-msg { text-align: center; color: #fff; font-family: 'Outfit', sans-serif; margin-top: 60px; padding: 0 20px; }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="status-msg">Loading invoice…</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        const RENDER_BACKEND_URL = 'https://aantaat-webapp.onrender.com';
+        const invoiceId = new URLSearchParams(window.location.search).get('id');
+        const root = document.getElementById('root');
+        const money = v => 'Rs. ' + Number(v || 0).toFixed(2);
+
+        function escapeHtml(s) {
+            return String(s || '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[c]);
+        }
+
+        function renderBill(bill) {
+            document.title = `Invoice ${bill.invoice_id} | Antant Boutique`;
+            const rows = (bill.items || []).map(it => `
+                <tr>
+                    <td>${escapeHtml(it.name || it.code)}<div class="item-code">${escapeHtml(it.code)}</div></td>
+                    <td class="rt">${Number(it.qty || 0)}</td>
+                    <td class="rt">${Number(it.rate || 0).toFixed(0)}</td>
+                    <td class="rt">${Number(it.amount || 0).toFixed(0)}</td>
+                </tr>`).join('');
+
+            root.innerHTML = `
+                <div class="card" id="invoiceCard">
+                    <div class="shop-head">
+                        <h1>ANTANT BOUTIQUE</h1>
+                        <p>fits you inside</p>
+                    </div>
+                    <div class="meta">
+                        Invoice: <strong>${escapeHtml(bill.invoice_id)}</strong> &middot; ${escapeHtml(bill.date)}<br>
+                        ${bill.customer ? `Billed to: <strong>${escapeHtml(bill.customer)}</strong>` : ''}
+                    </div>
+                    <table>
+                        <thead><tr><th>Item</th><th class="rt">Qty</th><th class="rt">Rate</th><th class="rt">Amt</th></tr></thead>
+                        <tbody>${rows || '<tr><td colspan="4">No items</td></tr>'}</tbody>
+                    </table>
+                    <div class="totals">
+                        <div><span>Subtotal</span><span>${money(bill.subtotal)}</span></div>
+                        ${Number(bill.discount) > 0 ? `<div><span>Discount</span><span>- ${money(bill.discount)}</span></div>` : ''}
+                        <div class="grand"><span>Total</span><span>${money(bill.total)}</span></div>
+                        <div><span>Paid</span><span>${money(bill.paid)}</span></div>
+                        <div class="${Number(bill.due) > 0 ? 'due-row' : ''}"><span>Due</span><span>${money(bill.due)}</span></div>
+                    </div>
+                    ${(bill.greeting_text || bill.greeting_image) ? `
+                    <div class="greeting">
+                        ${bill.greeting_image ? `<img src="${bill.greeting_image}" alt="">` : ''}
+                        ${bill.greeting_text ? `<p>${escapeHtml(bill.greeting_text)}</p>` : ''}
+                    </div>` : ''}
+                    <div class="foot">Thank you for shopping with us!</div>
+                </div>
+                ${bill.payment_link ? `<a class="action-btn pay-btn" href="${bill.payment_link}">Pay via UPI</a>` : ''}
+                <button class="action-btn download-btn" id="downloadBtn">Download PDF</button>
+            `;
+            document.getElementById('downloadBtn').onclick = () => downloadInvoicePdf(bill.invoice_id);
+        }
+
+        async function downloadInvoicePdf(invoiceId) {
+            const btn = document.getElementById('downloadBtn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Preparing…';
+            btn.disabled = true;
+            try {
+                const card = document.getElementById('invoiceCard');
+                const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#fffefb' });
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdfWidth = 100; // mm
+                const pdfHeight = pdfWidth * canvas.height / canvas.width;
+                const pdf = new jsPDF({ unit: 'mm', format: [pdfWidth, pdfHeight] });
+                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+                pdf.save(`Invoice-${invoiceId}.pdf`);
+            } catch (e) {
+                console.error(e);
+                alert('Could not generate the PDF. Please try again.');
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function load() {
+            if (!invoiceId) {
+                root.innerHTML = '<div class="status-msg">No invoice specified.</div>';
+                return;
+            }
+            try {
+                const res = await fetch(`${RENDER_BACKEND_URL}/api/invoice/${encodeURIComponent(invoiceId)}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    renderBill(data.bill);
+                } else {
+                    root.innerHTML = `<div class="status-msg">${escapeHtml(data.message || 'Invoice not found.')}</div>`;
+                }
+            } catch (e) {
+                console.error(e);
+                root.innerHTML = '<div class="status-msg">Could not load this invoice right now. Please try again shortly.</div>';
+            }
+        }
+
+        load();
+    </script>
+</body>
+</html>
