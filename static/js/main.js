@@ -416,9 +416,14 @@ function filterCategorySuggestions(input) {
 }
 
 function togglePriceField(chk) {
+    // Both can be used together: a typed price is no longer cleared/disabled
+    // when Suggest Price is ticked — it's included as its own option
+    // alongside the profit-margin suggestions, so the operator can compare
+    // and pick from either in the price wizard that opens after saving.
     const priceInput = document.getElementById('designProductPrice');
-    priceInput.disabled = chk.checked;
-    if (chk.checked) priceInput.value = '';
+    priceInput.placeholder = chk.checked
+        ? 'Optional — included as an option alongside suggestions'
+        : 'Finalized price';
 }
 
 // Calculate production cost & specs on-the-fly
@@ -590,9 +595,13 @@ function openPriceWizard(modelNo, suggestions) {
     
     container.innerHTML = '';
     
+    // Default to whatever the operator typed themselves (always first in the
+    // list when present) rather than an arbitrary profit margin — it's their
+    // deliberate input, the suggestions are just there to compare against.
+    const defaultIdx = suggestions[0] && suggestions[0].label === 'Base Input Price' ? 0 : 1;
     suggestions.forEach((opt, idx) => {
         const div = document.createElement('div');
-        div.className = `pricing-option-card ${idx === 1 ? 'selected' : ''}`; // default second item selected
+        div.className = `pricing-option-card ${idx === defaultIdx ? 'selected' : ''}`;
         div.onclick = () => {
             container.querySelectorAll('.pricing-option-card').forEach(el => el.classList.remove('selected'));
             div.classList.add('selected');

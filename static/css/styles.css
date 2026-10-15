@@ -1797,7 +1797,9 @@ input[type="number"]:focus {
     }
     
     .price-suggest-checkbox {
-        position: static;
+        /* NOT position: static — .checkmark is positioned absolute relative
+           to this label (see .custom-checkbox); static here broke that
+           anchor and sent the checkmark box to the page's top-left corner. */
         margin-top: 4px;
         display: block;
     }
