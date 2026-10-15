@@ -1201,10 +1201,29 @@ function buildReceiptHTML(bill) {
     `;
 }
 
+// Kept for the "Message Customer" button in the invoice modal's header,
+// which — unlike the due-bill cards — has no duesCache entry to look up
+// (a fresh bill, possibly fully paid, may never appear in either dues view).
+let lastReceiptBill = null;
+
 // Render a real, printable thermal receipt from the checkout result.
 function openInvoiceModal(bill) {
+    lastReceiptBill = bill;
     document.getElementById('invoiceViewArea').innerHTML = buildReceiptHTML(bill);
     document.getElementById('invoiceModal').classList.add('active');
+}
+
+// "Bill initiated" trigger — lets the operator choose to message the
+// customer right after checkout, or not, matching the Thermal Print toggle's
+// same opt-in pattern.
+function messageCustomerFromModal() {
+    if (!lastReceiptBill) return;
+    messageCustomerInvoice({
+        contact: lastReceiptBill.phone,
+        name: lastReceiptBill.customer,
+        invoice_id: lastReceiptBill.invoice_id,
+        due: lastReceiptBill.due
+    });
 }
 
 function closeInvoiceModal() {
@@ -1734,9 +1753,12 @@ function renderDues() {
         const statusLine = duesViewMode === 'paid'
             ? `<span class="due-card-cleared">Cleared${due.cleared_at ? ' &middot; ' + due.cleared_at : ''}</span>`
             : `<span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>`;
+        const messageBtn = `<button class="btn btn-secondary btn-sm" onclick="messageCustomerFromDues('${due.invoice_id}')"><i class="fa-brands fa-whatsapp"></i> Message</button>`;
         const actions = duesViewMode === 'paid'
-            ? `<button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Send Clearance</button>`
+            ? `${messageBtn}
+                <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Send Clearance</button>`
             : `<button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Due</button>
+                ${messageBtn}
                 <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Share</button>`;
         div.innerHTML = `
             <div class="due-card-header">
@@ -1821,6 +1843,35 @@ function prefillDueSlipsPayment(invoiceId) {
                 recalcBillTotal();
             }
         });
+}
+
+// Opens WhatsApp directly in the customer's own chat (via a wa.me deep
+// link) with a message pre-filled, linking to the public invoice viewer —
+// wa.me can only pre-fill text, not attach a file, so the PDF lives on that
+// page instead. The operator still has to tap Send inside WhatsApp; nothing
+// is sent automatically, so this carries none of the automation/ban risk of
+// a bot-driven send.
+function messageCustomerInvoice({ contact, name, invoice_id, due }) {
+    const phone = (contact || '').replace(/\D/g, '');
+    if (phone.length !== 10) {
+        alert(`This customer's phone number doesn't look like a valid 10-digit WhatsApp number (got "${contact || ''}").`);
+        return;
+    }
+    const link = `${RENDER_BACKEND_URL}/invoice/${invoice_id}`;
+    const statusLine = Number(due) > 0
+        ? `Amount due: Rs. ${Number(due).toFixed(2)}`
+        : `Status: Fully paid ✅`;
+    const message = `Hi ${name || ''}, here's your invoice ${invoice_id} from Antant Boutique.\n${statusLine}\nView & download: ${link}`;
+    window.open(`https://wa.me/91${phone}?text=${encodeURIComponent(message)}`, '_blank');
+}
+
+// Thin wrapper for due/paid card buttons — only the invoice id needs to go
+// through an inline onclick string, so a customer name containing a quote
+// or apostrophe can't break the HTML attribute.
+function messageCustomerFromDues(invoiceId) {
+    const due = duesCache.find(d => d.invoice_id === invoiceId);
+    if (!due) return;
+    messageCustomerInvoice({ contact: due.contact, name: due.name, invoice_id: due.invoice_id, due: due.due });
 }
 
 // Render a due invoice as a PDF and hand it to the OS share sheet (WhatsApp,
