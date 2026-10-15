@@ -1762,11 +1762,9 @@ function renderDues() {
             : `<span class="due-card-due">Due: Rs. ${due.due.toFixed(2)}</span>`;
         const messageBtn = `<button class="btn btn-secondary btn-sm" onclick="messageCustomerFromDues('${due.invoice_id}')"><i class="fa-brands fa-whatsapp"></i> Message</button>`;
         const actions = duesViewMode === 'paid'
-            ? `${messageBtn}
-                <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Send Clearance</button>`
+            ? messageBtn
             : `<button class="btn btn-secondary btn-sm" onclick="prefillDueSlipsPayment('${due.invoice_id}')"><i class="fa-solid fa-credit-card"></i> Pay Due</button>
-                ${messageBtn}
-                <button class="btn btn-secondary btn-sm" onclick="shareDueInvoice('${due.invoice_id}')"><i class="fa-solid fa-share-nodes"></i> Share</button>`;
+                ${messageBtn}`;
         div.innerHTML = `
             <div class="due-card-header">
                 <span>Invoice: ${due.invoice_id}${due.date ? ' &middot; ' + due.date : ''}</span>
@@ -1882,80 +1880,6 @@ function messageCustomerFromDues(invoiceId) {
     const due = duesCache.find(d => d.invoice_id === invoiceId);
     if (!due) return;
     messageCustomerInvoice({ contact: due.contact, name: due.name, invoice_id: due.invoice_id, due: due.due });
-}
-
-// Render a due invoice as a PDF and hand it to the OS share sheet (WhatsApp,
-// email, etc. on mobile) via the Web Share API; falls back to a plain
-// download where file sharing isn't supported (most desktop browsers).
-async function shareDueInvoice(invoiceId) {
-    const due = duesCache.find(d => d.invoice_id === invoiceId);
-    if (!due) return;
-
-    const items = due.models.map((model, i) => {
-        const p = inventoryCache.products.find(p => p.code === model);
-        const rate = p ? p.price : 0;
-        const qty = Number(due.quantities[i] || 0);
-        return { name: p ? p.name : model, code: model, qty, rate, amount: rate * qty };
-    });
-    if (Number(due.accessories) > 0) {
-        items.push({ name: 'Accessories', code: 'OWA-PolB', qty: 1, rate: due.accessories, amount: due.accessories });
-    }
-
-    const bill = {
-        invoice_id: due.invoice_id,
-        date: due.date,
-        customer: due.name,
-        phone: due.contact,
-        items,
-        subtotal: due.subtotal,
-        discount: due.discount,
-        total: due.payable,
-        paid: due.paid,
-        due: due.due
-    };
-
-    // Render off-screen (not display:none — html2canvas can't rasterize that)
-    // so the layout is real without disturbing the visible UI.
-    const holder = document.createElement('div');
-    holder.style.cssText = 'position:fixed; left:-9999px; top:0; width:300px; background:#fff;';
-    holder.innerHTML = buildReceiptHTML(bill);
-    document.body.appendChild(holder);
-
-    try {
-        const canvas = await html2canvas(holder, { scale: 2, backgroundColor: '#ffffff' });
-        const imgData = canvas.toDataURL('image/png');
-        const { jsPDF } = window.jspdf;
-        const pdfWidth = 80; // mm — standard thermal receipt width
-        const pdfHeight = pdfWidth * canvas.height / canvas.width;
-        const pdf = new jsPDF({ unit: 'mm', format: [pdfWidth, pdfHeight] });
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        const blob = pdf.output('blob');
-        const file = new File([blob], `Invoice-${due.invoice_id}.pdf`, { type: 'application/pdf' });
-
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({
-                files: [file],
-                title: `Invoice ${due.invoice_id}`,
-                text: `Antant Boutique invoice ${due.invoice_id} — due Rs. ${due.due.toFixed(2)}`
-            });
-        } else {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Invoice-${due.invoice_id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-        }
-    } catch (e) {
-        if (e.name !== 'AbortError') {
-            console.error(e);
-            alert('Could not generate the invoice PDF.');
-        }
-    } finally {
-        holder.remove();
-    }
 }
 
 // ----------------- SEARCH & INFO LOOKUP -----------------
