@@ -1123,6 +1123,16 @@ async function submitBilling(event) {
             syncInventoryCache();
             loadDashboard();
             loadDues();
+
+            // The bill's own math came out overpaid on a repayment — the
+            // server deliberately does NOT auto-credit this to the wallet
+            // (see process_billing), since that's exactly how recalculation
+            // glitches used to turn into phantom customer credit. Flag it so
+            // the operator can check it's real and add it deliberately via
+            // Add Wallet Credit if so.
+            if (result.overpaid_uncredited > 0) {
+                alert(`Note: this payment came out Rs. ${result.overpaid_uncredited.toFixed(2)} over the bill total. It was NOT added to the customer's wallet automatically — double-check the amount, then use "Add Wallet Credit" if it's real.`);
+            }
         } else {
             alert("Checkout failed: " + (result.message || 'Unknown error.'));
             // A failure past the stock-adjustment step (see process_billing)
